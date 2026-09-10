@@ -211,9 +211,12 @@ const ThinkingTrace = ({
           </ol>
         )}
 
-        {open && reasoningLines.length > 0 && (
+        {(open || active) && reasoningLines.length > 0 && (
           <div className="mt-2 flex flex-col gap-1.5 border-t border-border/40 pt-2">
-            {reasoningLines.map((line, i) => (
+            {/* While the turn runs we show the latest thinking lines without
+                asking the user to expand anything; the full trace stays
+                available on expand. */}
+            {(open ? reasoningLines : reasoningLines.slice(-6)).map((line, i) => (
               <p key={`tr-${i}`} className="text-[12.5px] leading-relaxed text-muted-foreground/90 break-words">
                 {line}
               </p>
