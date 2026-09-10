@@ -172,6 +172,12 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
         }
 
         // ------------------------------------------------------- synthesis
+        thought(
+          t(
+            `جمعت ${corpus.length} مصدرًا مقروءًا، وأبدأ الآن تحليلها وكتابة التقرير…`,
+            `Gathered ${corpus.length} readable sources — analysing them and writing the report…`,
+          ),
+        );
         const userContent = [
           `Research question: ${query}`,
           context ? `Conversation context for disambiguation only:\n${context}` : "",
