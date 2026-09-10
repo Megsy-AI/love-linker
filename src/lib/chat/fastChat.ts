@@ -208,10 +208,24 @@ export async function tryFastChat({
     return false;
   };
 
+  const readWithIdleGuard = async () => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("__FAST_IDLE__")), IDLE_MS);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   try {
     let done = false;
     while (!done) {
-      const { done: streamDone, value } = await reader.read();
+      const { done: streamDone, value } = await readWithIdleGuard();
       if (streamDone) break;
       textBuffer += decoder.decode(value, { stream: true });
       let idx: number;
@@ -237,9 +251,19 @@ export async function tryFastChat({
       // clean (nothing emitted) escalation is safe.
       return emitted ? "answered" : "escalate";
     }
+    if ((e as Error)?.message === "__FAST_IDLE__") {
+      // The provider went silent mid-stream: stop waiting instead of leaving
+      // the UI thinking forever.
+      try { ctl.abort(); } catch { /* ignore */ }
+      try { await reader.cancel(); } catch { /* ignore */ }
+      return emitted ? "answered" : "escalate";
+    }
     if (emitted) return "answered";
     throw e;
+  } finally {
+    signal?.removeEventListener("abort", onOuterAbort);
   }
+
 
   if (!sawAnyPayload && !emitted) return "escalate";
   return "answered";
