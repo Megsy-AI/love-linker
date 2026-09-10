@@ -1523,6 +1523,10 @@ const ChatMessage = ({
         {showNarration && (
           <ThinkingTrace
             steps={narrations!}
+            // Deep Research streams its live thinking (search plan, sources it
+            // is reading, synthesis notes) — show it while the run is in
+            // flight instead of only after the report lands.
+            text={reasoning}
             status={searchStatus}
             active={isResearchActive}
             tool={activeToolName}
@@ -1545,7 +1549,7 @@ const ChatMessage = ({
           reasoning &&
           !showNarration &&
           !showLiveThinkingTrace &&
-          isStreaming && (
+          (isStreaming || researchStatus === "running") && (
             <ThinkingTrace
               text={reasoning}
               status={searchStatus}
