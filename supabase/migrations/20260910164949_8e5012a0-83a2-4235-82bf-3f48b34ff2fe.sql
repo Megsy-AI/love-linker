@@ -1,0 +1,1 @@
+ALTER TABLE public.admin_bot_state ADD COLUMN IF NOT EXISTS authorized boolean NOT NULL DEFAULT false;

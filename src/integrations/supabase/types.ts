@@ -58,16 +58,19 @@ export type Database = {
       }
       admin_bot_state: {
         Row: {
+          authorized: boolean
           awaiting_provider: string | null
           chat_id: string
           updated_at: string
         }
         Insert: {
+          authorized?: boolean
           awaiting_provider?: string | null
           chat_id: string
           updated_at?: string
         }
         Update: {
+          authorized?: boolean
           awaiting_provider?: string | null
           chat_id?: string
           updated_at?: string
