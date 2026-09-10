@@ -111,6 +111,9 @@ export async function callCerebras(
 ): Promise<CerebrasResult | null> {
   const key = cerebrasKey();
   if (!key) return null;
+  // A billing/auth rejection minutes ago means the same rejection now: skip the
+  // provider entirely instead of paying the round trip again.
+  if (providerBlocked("cerebras")) return null;
 
   const preferred = models.length
     ? models.map((m) => cerebrasModelFor(m, role))
