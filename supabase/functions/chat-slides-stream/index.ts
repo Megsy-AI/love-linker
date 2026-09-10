@@ -148,9 +148,12 @@ function deckSystemPrompt(
 }
 ${style ? `Deck style — follow it in tone, wording density and slide rhythm: ${style}\n` : ""}Rules:
 - Write exactly ${numberOfSlides} slides total, mixing types "cover" (first slide only), "bullets", "stats", "quote", "two-col" and "closing" (last slide only) as fits the content.
-- Give every slide a "layout" chosen from: ${LAYOUTS.join(", ")}. Vary the layouts so no two consecutive slides use the same one.
-- Every "bullets" slide has 3-5 concise, information-dense bullets (no filler).
-- On "stats" slides, each "value" is a short figure (max 12 characters, e.g. "2.5 GW", "42%") and each "label" is at most 4 words. Never put a sentence in "value".
+- Give every slide a "layout" chosen from: ${LAYOUTS.join(", ")}. Never repeat a layout on two consecutive slides, and use at least ${Math.min(LAYOUTS.length, Math.max(5, numberOfSlides - 2))} different layouts across the deck — the deck must not feel repetitive.
+- Content weight is substantial (between medium and heavy), never thin: every body slide carries 45-90 words of real substance.
+- Every "bullets" slide has 4-6 bullets, each a full informative line of 12-22 words with a concrete fact, figure, mechanism or example — never 2-3 word labels and never filler.
+- Give every non-cover slide a short "subtitle" of 6-14 words that adds context instead of repeating the title.
+- On "stats" slides give 3-4 stats; each "value" is a short figure (max 12 characters, e.g. "2.5 GW", "42%") and each "label" is at most 4 words. Never put a sentence in "value".
+- Quote slides carry a real substantive quote of 15-35 words with an attribution.
 - All text must be in language: ${language}.
 - Output raw JSON only, nothing else.`;
 }
