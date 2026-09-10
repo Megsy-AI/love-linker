@@ -74,12 +74,13 @@ async function buKeys(admin: Admin | null): Promise<VaultKey[]> {
 
 /* ------------------------------- Browser Use ------------------------------ */
 
+/** `"auth"` means this key itself is unusable, so the caller rotates to the next. */
 async function runBrowserUse(
   key: string,
   task: string,
   budgetMs: number,
   onStep?: AgentProgress,
-): Promise<CloudAgentResult | null> {
+): Promise<CloudAgentResult | null | { retryOtherKey: string }> {
   const headers = { "X-Browser-Use-API-Key": key, "Content-Type": "application/json" };
 
   // Free plans reject premium models with 403 "not available on the free plan",
@@ -107,6 +108,10 @@ async function runBrowserUse(
     if (created.ok) break;
     const failMsg = (await created.text().catch(() => "")).slice(0, 300);
     console.error("browser-use create failed", created.status, llm ?? "default", failMsg);
+    // Credit/auth rejections belong to the key, not the model: rotate.
+    if ([401, 402, 403].includes(created.status) && !/not available on the/i.test(failMsg)) {
+      return { retryOtherKey: `${created.status}: ${failMsg}` };
+    }
     // Only a model-rejection is worth another model; anything else is terminal.
     if (!/not available on the|body.*llm|Input should be/i.test(failMsg)) return null;
   }
