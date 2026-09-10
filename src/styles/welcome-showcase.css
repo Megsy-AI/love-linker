@@ -1,0 +1,26 @@
+:root {
+  --welcome-paper: 40 20% 98%;
+  --welcome-ink: 24 10% 8%;
+  --welcome-muted: 28 7% 42%;
+  --welcome-line: 30 9% 86%;
+}
+
+@keyframes welcome-enter-next {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes welcome-enter-prev {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.welcome-screen-enter-next { animation: welcome-enter-next .32s cubic-bezier(.22, 1, .36, 1) both; }
+.welcome-screen-enter-prev { animation: welcome-enter-prev .32s cubic-bezier(.22, 1, .36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-screen-enter-next,
+  .welcome-screen-enter-prev {
+    animation: none;
+  }
+}

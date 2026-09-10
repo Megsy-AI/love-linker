@@ -1,0 +1,50 @@
+project_id = "qdnqxjzjecaieuavagvq"
+
+[functions.tg-file]
+verify_jwt = false
+
+[functions.storage-purge]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.report-error]
+verify_jwt = false
+
+[functions.telegram-tasks-bot]
+verify_jwt = false
+
+[functions.mcp-gateway]
+verify_jwt = false
+
+[functions.web-search]
+verify_jwt = false
+
+[functions.read-url]
+verify_jwt = false
+
+[functions.oauth-authorize]
+verify_jwt = false
+
+[functions.slides-api]
+verify_jwt = false
+
+[functions.chat-slides-stream]
+verify_jwt = false
+
+[functions.docs-generate]
+verify_jwt = false
+
+[functions.dodo-webhook]
+verify_jwt = false
+
+[functions.kashier-webhook]
+verify_jwt = false
+
+
+[functions.manus-bridge]
+verify_jwt = false
+
+[functions.manus-proxy]
+verify_jwt = false

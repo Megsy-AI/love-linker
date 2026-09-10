@@ -1,0 +1,1 @@
+ALTER TABLE public.computer_tasks ADD COLUMN IF NOT EXISTS provider_key_ref text;
