@@ -12,6 +12,11 @@
  * (see `cloudAgents.ts`).
  */
 import { callCerebras } from "./cerebras.ts";
+import {
+  noteProviderFailure,
+  noteProviderSuccess,
+  providerBlocked,
+} from "./providerBreaker.ts";
 
 const BASE = Deno.env.get("ABLITERATION_API_BASE") || "https://api.abliteration.ai/v1";
 
@@ -156,6 +161,8 @@ export async function callModel(
   const cerebras = await callCerebras(models, payload, role);
   if (cerebras) return { response: cerebras.response, model: cerebras.model };
 
+  if (providerBlocked("abliteration")) return null;
+
   const keys = await modelKeys(admin);
   if (!keys.length) {
     console.error("abliteration: no key configured");
@@ -169,6 +176,7 @@ export async function callModel(
 
 
   for (const model of ladder) {
+    if (providerBlocked("abliteration", model)) continue;
     for (const entry of keys) {
       try {
         const response = await fetch(`${BASE}/chat/completions`, {
@@ -186,10 +194,12 @@ export async function callModel(
               .update({ last_used_at: new Date().toISOString(), last_error: null })
               .eq("id", entry.id);
           }
+          noteProviderSuccess("abliteration", model);
           return { response, model, keyId: entry.id };
         }
         const detail = (await response.text().catch(() => "")).slice(0, 400);
         console.error(`abliteration ${model} [${response.status}]: ${detail}`);
+        noteProviderFailure("abliteration", model, response.status);
         if (entry.id && admin && [401, 402, 403, 429].includes(response.status)) {
           void admin
             .from("abliteration_keys")

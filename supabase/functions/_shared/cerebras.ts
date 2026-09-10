@@ -89,6 +89,12 @@ export function cerebrasPayload(payload: Record<string, unknown>): Record<string
   return out;
 }
 
+import {
+  noteProviderFailure,
+  noteProviderSuccess,
+  providerBlocked,
+} from "./providerBreaker.ts";
+
 export interface CerebrasResult {
   response: Response;
   model: string;
@@ -105,6 +111,9 @@ export async function callCerebras(
 ): Promise<CerebrasResult | null> {
   const key = cerebrasKey();
   if (!key) return null;
+  // A billing/auth rejection minutes ago means the same rejection now: skip the
+  // provider entirely instead of paying the round trip again.
+  if (providerBlocked("cerebras")) return null;
 
   const preferred = models.length
     ? models.map((m) => cerebrasModelFor(m, role))
@@ -116,6 +125,7 @@ export async function callCerebras(
   for (let pass = 0; pass < 2; pass++) {
     let sawRateLimit = false;
     for (const model of ladder) {
+      if (providerBlocked("cerebras", model)) continue;
       const body = cerebrasPayload({ ...payload, model });
       try {
         const response = await fetch(`${BASE}/chat/completions`, {
@@ -126,9 +136,13 @@ export async function callCerebras(
           },
           body: JSON.stringify({ ...body, model }),
         });
-        if (response.ok) return { response, model };
+        if (response.ok) {
+          noteProviderSuccess("cerebras", model);
+          return { response, model };
+        }
         const detail = (await response.text().catch(() => "")).slice(0, 400);
         console.error(`cerebras ${model} [${response.status}]: ${detail}`);
+        noteProviderFailure("cerebras", model, response.status);
         if ([401, 402, 403].includes(response.status)) return null;
         if (response.status === 429) sawRateLimit = true;
       } catch (error) {
