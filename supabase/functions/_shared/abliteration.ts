@@ -176,6 +176,7 @@ export async function callModel(
 
 
   for (const model of ladder) {
+    if (providerBlocked("abliteration", model)) continue;
     for (const entry of keys) {
       try {
         const response = await fetch(`${BASE}/chat/completions`, {
