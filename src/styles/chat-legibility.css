@@ -1,0 +1,226 @@
+/* ============================================================
+   CHAT LEGIBILITY — loaded LAST so it wins the cascade.
+
+   Fixes the two readability bugs reported in chat:
+   1. The user bubble was painted with `--primary` (near-white in the dark
+      theme) while every inline child (<p>, <span>, <strong>) kept the global
+      foreground colour — also near-white — so user messages rendered as an
+      empty white pill.
+   2. Assistant text and tool cards were too low-contrast / too small.
+   ============================================================ */
+
+:root {
+  --chat-user-bubble-bg: hsl(0 0% 16%);
+  --chat-user-bubble-fg: hsl(0 0% 98%);
+}
+
+/* ── User bubble ─────────────────────────────────────────── */
+.user-bubble,
+.chat-bubble-user,
+[data-role="user"] .message-bubble,
+[data-message-role="user"] .message-bubble,
+[data-shell="megsy"] .user-bubble {
+  background: var(--chat-user-bubble-bg) !important;
+  color: var(--chat-user-bubble-fg) !important;
+  border: 1px solid
+    color-mix(in srgb, var(--chat-user-bubble-fg) 12%, transparent) !important;
+  box-shadow: 0 6px 18px -12px rgb(0 0 0 / 0.55) !important;
+  font-weight: 450;
+}
+
+/* Every inline child must inherit the bubble colour — this is the actual
+   invisible-text fix. */
+.user-bubble *,
+.chat-bubble-user *,
+[data-role="user"] .message-bubble *,
+[data-message-role="user"] .message-bubble * {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.user-bubble code,
+.user-bubble pre {
+  background: color-mix(in srgb, var(--chat-user-bubble-fg) 12%, transparent) !important;
+}
+
+.user-bubble a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Assistant text ──────────────────────────────────────── */
+/* Assistant body copy sits at the international chat standard (15px / 1.7)
+   so long answers stay compact and scannable instead of oversized. */
+.prose-chat {
+  color: hsl(var(--foreground)) !important;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.prose-chat h1 {
+  font-size: 1.15rem;
+}
+
+.prose-chat h2 {
+  font-size: 1.05rem;
+}
+
+.prose-chat h3 {
+  font-size: 0.975rem;
+}
+
+.prose-chat strong {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 700;
+}
+
+.prose-chat p,
+.prose-chat li {
+  color: hsl(var(--foreground) / 0.94);
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Chat header must be visually indistinguishable from the chat canvas. */
+.mobile-chat-header,
+.mobile-chat-header::before,
+.mobile-chat-header::after {
+  background: hsl(var(--background)) !important;
+  background-color: hsl(var(--background)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-bottom: 0 !important;
+}
+
+/* Lightweight mobile work glow: visible only for an empty chat or an active
+   computer/media/long task. It lives below content and never catches taps. */
+@media (max-width: 767.98px) {
+  /* Unified canvas: the chat surface follows the page background so the
+     composer, chips and message area read as one continuous page — no
+     dark band split across the screen. */
+  [data-chat-main="true"] {
+    --chat-agent-canvas: var(--background);
+    --chat-agent-surface: var(--card);
+    --chat-agent-line: var(--foreground);
+    background: hsl(var(--chat-agent-canvas)) !important;
+  }
+
+  [data-chat-main="true"] > [role="log"] {
+    background: hsl(var(--chat-agent-canvas)) !important;
+  }
+
+  [data-chat-main="true"] [data-tool-timeline] {
+    max-width: 100%;
+    padding-inline: 0.25rem;
+  }
+
+  [data-chat-main="true"] [data-computer-viewport] {
+    background: hsl(var(--chat-agent-surface) / 0.72);
+    border-color: hsl(var(--chat-agent-line) / 0.08);
+    box-shadow: 0 20px 50px -30px hsl(var(--primary) / 0.5);
+  }
+
+  .chat-composer-dock {
+    padding-inline: 1rem !important;
+    background: linear-gradient(to top, hsl(var(--chat-agent-canvas)) 55%, transparent) !important;
+  }
+
+  .chat-composer-frame.chat-composer-liquid {
+    min-height: 54px;
+    margin-inline: 0 !important;
+    padding-inline: 0.75rem !important;
+    background: hsl(var(--chat-agent-surface) / 0.88) !important;
+    border: 1px solid hsl(var(--chat-agent-line) / 0.08) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 18px 40px -26px hsl(var(--foreground) / 0.5) !important;
+    backdrop-filter: blur(22px) saturate(130%) !important;
+  }
+
+  .chat-composer-frame.chat-composer-liquid textarea {
+    font-weight: 400 !important;
+  }
+
+  .chat-composer-frame button[aria-label="Send message" i] {
+    background: hsl(var(--foreground)) !important;
+    color: hsl(var(--background)) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 14px !important;
+  }
+
+  [data-chat-main="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 42% -28% -18%;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    background:
+      radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--megsy-blue) 34%, transparent), transparent 66%),
+      linear-gradient(to top, color-mix(in srgb, var(--megsy-blue) 15%, transparent), transparent 72%);
+    transform: translate3d(0, 12%, 0) scale(0.96);
+    transition: opacity 420ms ease, transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-chat-main="true"][data-chat-glow="true"]::after {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    animation: chat-work-glow 5s ease-in-out infinite alternate;
+  }
+
+
+  .chat-composer-frame[data-compact="true"] {
+    min-height: 54px;
+    padding-inline: 3rem !important;
+  }
+
+  .chat-composer-frame[data-compact="true"] > div:has(textarea) {
+    padding-inline: 0 !important;
+  }
+
+  .chat-composer-frame[data-compact="true"] textarea {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding-block: 0.35rem !important;
+  }
+
+  .chat-composer-frame[data-compact="true"] [data-composer-controls] {
+    position: absolute;
+    inset-inline: 0.45rem;
+    top: 50%;
+    width: auto;
+    transform: translateY(-50%);
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .chat-composer-frame[data-compact="true"] [data-composer-controls] button {
+    pointer-events: auto;
+  }
+
+  .chat-composer-frame textarea {
+    position: relative;
+    z-index: 3;
+    pointer-events: auto;
+  }
+
+  .chat-composer-frame[data-compact="true"] [data-composer-controls] > .flex-1 {
+    display: block;
+  }
+}
+
+@keyframes chat-work-glow {
+  from { transform: translate3d(-2%, 2%, 0) scale(0.98); opacity: 0.72; }
+  to { transform: translate3d(2%, -2%, 0) scale(1.04); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chat-main="true"][data-chat-glow="true"]::after { animation: none; }
+}

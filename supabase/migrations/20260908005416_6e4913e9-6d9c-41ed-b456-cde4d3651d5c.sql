@@ -1,0 +1,1 @@
+UPDATE public.video_models SET is_active = false WHERE slug IN ('renderful-google-veo-3.1','renderful-google-veo-3.1-fast','renderful-kling-3.0-turbo');
