@@ -61,25 +61,27 @@ export async function closePageView(): Promise<void> {
   }
 }
 
-/** Records a new page view for `path`, closing the previous one first. */
+/**
+ * Records a new page view for `path`, closing the previous one first.
+ * The row id is minted client-side so the insert needs no read-back — visitors
+ * can write their own views but can never read anyone's.
+ */
 export async function trackPageView(path: string): Promise<void> {
   await closePageView();
   startedAt = Date.now();
+  const id = newId();
   try {
     const { data: auth } = await supabase.auth.getUser();
-    const { data, error } = await supabase
-      .from("page_views")
-      .insert({
-        visitor_id: visitorId(),
-        session_id: sessionId(),
-        path,
-        referrer: document.referrer ? document.referrer.slice(0, 500) : null,
-        user_agent: navigator.userAgent.slice(0, 300),
-        user_id: auth?.user?.id ?? null,
-      })
-      .select("id")
-      .maybeSingle();
-    if (!error && data) currentRowId = (data as { id: string }).id;
+    const { error } = await supabase.from("page_views").insert({
+      id,
+      visitor_id: visitorId(),
+      session_id: sessionId(),
+      path,
+      referrer: document.referrer ? document.referrer.slice(0, 500) : null,
+      user_agent: navigator.userAgent.slice(0, 300),
+      user_id: auth?.user?.id ?? null,
+    });
+    if (!error) currentRowId = id;
   } catch {
     /* ignore */
   }
