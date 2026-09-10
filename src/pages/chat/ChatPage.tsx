@@ -2074,7 +2074,10 @@ const ChatPage = () => {
     }
 
     // ── @docs agent: plan → research → review → clean writing ───────────
-    if (selectedAgent?.id === "docs") {
+    // Also auto-routed from plain language ("اكتبلي مستند عن…", "make me a
+    // PDF proposal") so the unified chat reaches the writer without chips.
+    const { shouldAutoStartDocs } = await import("@/lib/docs/autoDocsIntent");
+    if (selectedAgent?.id === "docs" || (chatMode === "normal" && shouldAutoStartDocs(userInput))) {
       try {
         const docFiles = currentFiles.filter(
           (f) => (f.type === "file" || f.type === "link") && f.data && !f.data.startsWith("__"),

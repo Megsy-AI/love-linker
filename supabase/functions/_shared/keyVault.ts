@@ -102,21 +102,53 @@ export async function saveVaultKey(
  * Active keys for a provider, least-recently-used first, already decrypted.
  * Callers walk the list and report each outcome so rotation/banning works.
  */
+/** Banned keys become eligible again after this cooldown (quota resets, billing tops up). */
+const REVIVE_AFTER_MS = 20 * 60 * 1000;
+
 export async function vaultKeys(provider: string, limit = 10): Promise<VaultKey[]> {
   const admin = vaultAdmin();
   if (!admin) return [];
-  const { data, error } = await admin
-    .from("service_keys")
-    .select("id,key_cipher,key_iv")
-    .eq("provider", provider)
-    .eq("status", "active")
-    .order("last_used_at", { ascending: true, nullsFirst: true })
-    .limit(limit);
+
+  const load = async () =>
+    await admin
+      .from("service_keys")
+      .select("id,key_cipher,key_iv,fail_count,last_used_at")
+      .eq("provider", provider)
+      .eq("status", "active")
+      // Healthiest first (fewest recent failures), then least recently used —
+      // load spreads evenly and a shaky key is always tried last.
+      .order("fail_count", { ascending: true })
+      .order("last_used_at", { ascending: true, nullsFirst: true })
+      .limit(limit);
+
+  let { data, error } = await load();
+
+  // Self-healing: if every key for this provider is banned, give the ones that
+  // cooled down a second chance instead of failing the user's request.
+  if (!error && !data?.length) {
+    const cutoff = new Date(Date.now() - REVIVE_AFTER_MS).toISOString();
+    const { data: revived } = await admin
+      .from("service_keys")
+      .update({ status: "active", fail_count: 0, banned_at: null })
+      .eq("provider", provider)
+      .eq("status", "banned")
+      .lt("banned_at", cutoff)
+      .select("id");
+    if ((revived ?? []).length) ({ data, error } = await load());
+  }
+
   if (error || !data?.length) return [];
+  const rows = data as Array<Record<string, string | number | null>>;
   const out: VaultKey[] = [];
-  for (const row of data as Array<Record<string, string>>) {
-    const key = await decryptKey(row.key_cipher, row.key_iv);
-    if (key && key.length > 8) out.push({ id: row.id, key });
+  for (const row of rows) {
+    const key = await decryptKey(String(row.key_cipher), String(row.key_iv));
+    if (key && key.length > 8) out.push({ id: String(row.id), key });
+  }
+  // Concurrent invocations would otherwise all grab the same head key; rotate
+  // the ordered list by a random offset so parallel requests fan out.
+  if (out.length > 1) {
+    const shift = Math.floor(Math.random() * out.length);
+    out.push(...out.splice(0, shift));
   }
   if (out.length) {
     void admin
