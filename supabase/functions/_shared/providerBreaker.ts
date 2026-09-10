@@ -17,7 +17,9 @@
 
 const openUntil = new Map<string, number>();
 
-const HARD_MS = 5 * 60 * 1000; // 401/402/403 — needs a human (top-up / new key)
+// Short on purpose: the account can be topped up at any moment, so the breaker
+// only absorbs the immediate burst of repeat rejections and then re-probes.
+const HARD_MS = 60 * 1000; // 401/402/403 — needs a human (top-up / new key)
 const SOFT_MS = 45 * 1000; // 429 — clears by itself
 
 /** True when this provider (optionally this model) is currently short-circuited. */
