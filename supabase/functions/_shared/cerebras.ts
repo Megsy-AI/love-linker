@@ -136,9 +136,13 @@ export async function callCerebras(
           },
           body: JSON.stringify({ ...body, model }),
         });
-        if (response.ok) return { response, model };
+        if (response.ok) {
+          noteProviderSuccess("cerebras", model);
+          return { response, model };
+        }
         const detail = (await response.text().catch(() => "")).slice(0, 400);
         console.error(`cerebras ${model} [${response.status}]: ${detail}`);
+        noteProviderFailure("cerebras", model, response.status);
         if ([401, 402, 403].includes(response.status)) return null;
         if (response.status === 429) sawRateLimit = true;
       } catch (error) {
