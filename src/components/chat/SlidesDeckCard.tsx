@@ -294,6 +294,15 @@ function SlideRender({
     primary: palette?.primary || "#111827",
   };
   const accentColor = (vAccent && ACCENT_HEX[vAccent]) || safePalette.accent;
+  // Deterministic surface per slide: same slide always looks the same, but
+  // neighbouring slides never share one flat background.
+  const surfaceBackground = slideSurface(
+    hashSeed(
+      `${slide.type || ""}|${layout}|${slide.title || slide.quote || slide.subtitle || ""}`,
+    ),
+    safePalette,
+    isCover,
+  );
   // Alignment: text-align honored when explicit.
   const alignClass =
     vAlign === "center"
