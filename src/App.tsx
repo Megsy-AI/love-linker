@@ -177,6 +177,7 @@ const App = () => {
                 <PromoBannerProvider>
                   <ConfirmProvider>
                     <ScrollToTop />
+                    <PageViewTracker />
                     <InternalLinkInterceptor />
                     <DodoReturnRedirect />
                     <MarketingTypographyScope />
