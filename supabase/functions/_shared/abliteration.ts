@@ -154,13 +154,15 @@ export async function callModel(
   models: string[],
   payload: Record<string, unknown>,
 ): Promise<ModelResponse | null> {
-  // Primary provider: Cerebras (per-role model split). Abliteration is fallback.
+  // Cerebras is the only text provider this product is allowed to use.
   const role = typeof (payload as Record<string, unknown>).agentRole === "string"
     ? String((payload as Record<string, unknown>).agentRole)
     : null;
   const cerebras = await callCerebras(models, payload, role);
   if (cerebras) return { response: cerebras.response, model: cerebras.model };
 
+  // Legacy fallback provider, kept behind an opt-in switch and off by default.
+  if (Deno.env.get("ENABLE_LEGACY_TEXT_PROVIDER") !== "true") return null;
   if (providerBlocked("abliteration")) return null;
 
   const keys = await modelKeys(admin);
