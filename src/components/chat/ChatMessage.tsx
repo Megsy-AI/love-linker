@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Terminal as TerminalIcon,
   Brain,
+  Download,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { m as motion, AnimatePresence } from "framer-motion";
@@ -148,6 +149,9 @@ interface ChatMessageProps {
   bottomSlot?: React.ReactNode;
   /** Hide action buttons (copy/like/dislike) — used when an interactive clarify card is shown below. */
   hideActions?: boolean;
+  /** When set, a download action is shown next to like / dislike / copy. */
+  downloadUrl?: string;
+  downloadName?: string;
   /** When set, shows a "Regenerate" button on assistant messages. */
   onRegenerate?: () => void;
   /** When set (and message is interrupted), the Resume button calls this instead of onRegenerate — it should continue rather than restart. */
@@ -821,6 +825,8 @@ const ChatMessage = ({
   showReaders,
   bottomSlot,
   hideActions,
+  downloadUrl,
+  downloadName,
   onRegenerate,
   onResume,
   onBranch,
@@ -2088,6 +2094,24 @@ const ChatMessage = ({
                     <Copy className="w-[15px] h-[15px]" strokeWidth={1.75} />
                   )}
                 </AIMessageAction>
+                {downloadUrl && (
+                  <AIMessageAction
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = downloadUrl;
+                      a.download = downloadName || "megsy-image.png";
+                      a.target = "_blank";
+                      a.rel = "noreferrer";
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    }}
+                    tooltip="Download"
+                    className="h-7 w-7 rounded-md border-0 bg-transparent text-muted-foreground/70 shadow-none hover:bg-transparent hover:text-foreground"
+                  >
+                    <Download className="w-[15px] h-[15px]" strokeWidth={1.75} />
+                  </AIMessageAction>
+                )}
               </AIMessageActions>
               </div>
             )}
