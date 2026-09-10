@@ -2,7 +2,6 @@ import { m as motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Download, Film, Loader2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import MegsyStarGradient from "@/components/branding/MegsyStarGradient";
 
 import { SecureVideo } from "@/components/chat/media/SecureVideo";
 
@@ -51,6 +50,8 @@ interface Props {
   mergeStatus?: "idle" | "merging" | "done" | "error" | "unavailable";
   mergeError?: string;
   finalVideoUrl?: string;
+  /** Download already offered in the message action row. */
+  hideDownload?: boolean;
 }
 
 export default function MediaResultCard({
@@ -60,6 +61,7 @@ export default function MediaResultCard({
   mergeStatus = "idle",
   mergeError,
   finalVideoUrl,
+  hideDownload,
 }: Props) {
   const visibleResults = results.filter(
     (r) => r.status === "running" || r.status === "done" || r.status === "error",
@@ -156,7 +158,7 @@ export default function MediaResultCard({
               </div>
 
               {/* Quiet action row — download sits with the message actions style */}
-              {r.status === "done" && r.url && (
+              {r.status === "done" && r.url && !hideDownload && (
                 <div className="mt-1 flex items-center gap-0.5 px-0.5">
                   <button
                     type="button"
@@ -275,16 +277,6 @@ function RunningTile({ previewUrl }: { progress?: number; previewUrl?: string })
         transition={{ duration: 2.3, ease: "easeInOut", repeat: Infinity }}
       />
 
-      <div className="pointer-events-none absolute inset-0 grid place-items-center">
-        <div className="flex flex-col items-center gap-2.5">
-          <motion.span
-            animate={{ scale: [1, 1.12, 1], opacity: [0.8, 1, 0.8] }}
-            transition={{ duration: 1.8, ease: "easeInOut", repeat: Infinity }}
-          >
-            <MegsyStarGradient className="h-7 w-7" />
-          </motion.span>
-        </div>
-      </div>
     </>
   );
 }
