@@ -142,6 +142,7 @@ const ChatMessageItemImpl = ({
   const showMediaSkeleton =
     msg.role === "assistant" &&
     isStreamingThis &&
+    !msg.mediaPlan &&
     !msg.content &&
     (msg.mode === "images" || msg.mode === "video") &&
     !(msg.images && msg.images.length > 0) &&
@@ -195,6 +196,11 @@ const ChatMessageItemImpl = ({
           modelLabel={msg.modelLabel}
           metadata={(msg as any).metadata}
           mode={msg.mode}
+          downloadUrl={
+            (msg.mediaResults ?? []).find((r: any) => r.status === "done" && r.url)?.url ||
+            (msg.images && msg.images.length === 1 ? msg.images[0] : undefined)
+          }
+          downloadName={`megsy-${msg.mode === "video" ? "video.mp4" : "image.png"}`}
           persistentTrace={Boolean(
             msg.mode === "code" ||
               msg.mode === "operator" ||

@@ -148,6 +148,7 @@ export default function AssistantMediaBlock({ msg, setMessages, setInput, setIsL
       <Suspense fallback={null}>
         {msg.mediaResults && msg.mediaResults.length > 0 && (
           <MediaResultCard
+            hideDownload={!!(typeof msg.content === "string" && msg.content.trim())}
             results={msg.mediaResults}
             finalVideoUrl={msg.mediaFinalVideoUrl}
             mergeStatus={msg.mediaMergeStatus}
