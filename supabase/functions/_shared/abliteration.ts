@@ -12,6 +12,11 @@
  * (see `cloudAgents.ts`).
  */
 import { callCerebras } from "./cerebras.ts";
+import {
+  noteProviderFailure,
+  noteProviderSuccess,
+  providerBlocked,
+} from "./providerBreaker.ts";
 
 const BASE = Deno.env.get("ABLITERATION_API_BASE") || "https://api.abliteration.ai/v1";
 
