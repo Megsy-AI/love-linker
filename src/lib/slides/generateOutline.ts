@@ -106,7 +106,7 @@ Slide 2: Slide title
 - short bullet
 ...
 
-Rules: each slide has a clear title and 2-4 short bullets (max 12 words each). Output nothing except the list.${
+Rules: each slide has a clear title and 4-6 substantial bullets (12-22 words each) carrying a concrete fact, figure, mechanism or example — no 2-3 word labels and no filler. Output nothing except the list.${
         grounding.length ? `\n\n${grounding.join("\n\n")}` : ""
       }`;
 
