@@ -89,27 +89,44 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
       const fail = (message: string) => {
         send({ type: "response.failed", error: { message } });
       };
+      // Live thinking: every phase narrates itself as reasoning deltas so the
+      // user watches the investigation happen instead of waiting in silence.
+      const thought = (line: string) => {
+        if (!line) return;
+        send({ type: "response.reasoning_summary_text.delta", delta: `${line}\n` });
+      };
+      const arabicQuery = /[\u0600-\u06FF]/.test(String(query ?? ""));
+      const t = (ar: string, en: string) => (arabicQuery ? ar : en);
 
       try {
         // ---------------------------------------------------------- search
+        thought(t("أحلل السؤال وأخطط لزوايا البحث…", "Breaking the question into search angles…"));
         const queryCount = Math.max(2, Math.min(6, Math.round(scale.requestSearches / 3)));
         const queries = await planQueries(query, queryCount);
+        thought(
+          t(`خطة البحث (${queries.length} استعلام):`, `Search plan (${queries.length} queries):`),
+        );
+        queries.forEach((q) => thought(`• ${q}`));
 
         const seen = new Map<string, WebSearchResult>();
         for (const q of queries) {
           send({ type: "response.web_search_call.searching" });
+          thought(t(`أبحث: ${q}`, `Searching: ${q}`));
           const found = await webSearch(q, Math.min(8, scale.requestSearches)).catch(
             () => ({ results: [] as WebSearchResult[] }),
           );
+          let added = 0;
           for (const item of found.results ?? []) {
             const url = String(item.url ?? "");
             if (!url || seen.has(url)) continue;
+            added += 1;
             seen.set(url, {
               url,
               title: String(item.title ?? url),
               snippet: String(item.snippet ?? ""),
             });
           }
+          thought(t(`↳ ${added} مصدر جديد`, `↳ ${added} new sources`));
         }
 
         const sources = [...seen.values()].slice(0, Math.min(18, scale.requestSearches * 2));
@@ -127,10 +144,15 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
         // ------------------------------------------------------ read pages
         const readCount = Math.min(sources.length, depth === "fast" ? 5 : 10);
         const perPage = Math.max(2_000, Math.floor(MAX_SOURCE_CHARS / Math.max(1, readCount)));
+        thought(
+          t(`أقرأ ${readCount} من أفضل المصادر…`, `Reading the top ${readCount} sources…`),
+        );
+        sources.slice(0, readCount).forEach((s) => thought(`• ${s.title}`));
         const pages = await readUrls(
           sources.slice(0, readCount).map((s) => s.url),
           perPage,
         ).catch(() => []);
+
 
         const corpus: string[] = [];
         let used = 0;
