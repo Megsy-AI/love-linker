@@ -333,7 +333,9 @@ const ChatMessageItemImpl = ({
               </Suspense>
             ) : undefined
           }
-          hideActions={msg.role === "assistant" && (!!msg.docsClarify || hasRunningTool)}
+          hideActions={
+            msg.role === "assistant" && (!!msg.docsClarify || hasRunningTool || mediaPending)
+          }
         />
       )}
       {msg.role === "assistant" && msg.docsPlan && (
