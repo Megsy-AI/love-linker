@@ -56,6 +56,24 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_bot_state: {
+        Row: {
+          awaiting_provider: string | null
+          chat_id: string
+          updated_at: string
+        }
+        Insert: {
+          awaiting_provider?: string | null
+          chat_id: string
+          updated_at?: string
+        }
+        Update: {
+          awaiting_provider?: string | null
+          chat_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_error_log: {
         Row: {
           context: Json | null
@@ -6560,6 +6578,48 @@ export type Database = {
         }
         Relationships: []
       }
+      page_views: {
+        Row: {
+          country: string | null
+          duration_ms: number | null
+          ended_at: string | null
+          id: string
+          path: string
+          referrer: string | null
+          session_id: string
+          started_at: string
+          user_agent: string | null
+          user_id: string | null
+          visitor_id: string
+        }
+        Insert: {
+          country?: string | null
+          duration_ms?: number | null
+          ended_at?: string | null
+          id?: string
+          path: string
+          referrer?: string | null
+          session_id: string
+          started_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+          visitor_id: string
+        }
+        Update: {
+          country?: string | null
+          duration_ms?: number | null
+          ended_at?: string | null
+          id?: string
+          path?: string
+          referrer?: string | null
+          session_id?: string
+          started_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+          visitor_id?: string
+        }
+        Relationships: []
+      }
       parallel_monitor_events: {
         Row: {
           citations: Json | null
@@ -8270,6 +8330,57 @@ export type Database = {
           started_at?: string
           status?: string
           title?: string
+        }
+        Relationships: []
+      }
+      service_keys: {
+        Row: {
+          banned_at: string | null
+          created_at: string
+          fail_count: number
+          id: string
+          key_cipher: string
+          key_hint: string | null
+          key_iv: string
+          label: string | null
+          last_error: string | null
+          last_used_at: string | null
+          provider: string
+          status: string
+          success_count: number
+          updated_at: string
+        }
+        Insert: {
+          banned_at?: string | null
+          created_at?: string
+          fail_count?: number
+          id?: string
+          key_cipher: string
+          key_hint?: string | null
+          key_iv: string
+          label?: string | null
+          last_error?: string | null
+          last_used_at?: string | null
+          provider: string
+          status?: string
+          success_count?: number
+          updated_at?: string
+        }
+        Update: {
+          banned_at?: string | null
+          created_at?: string
+          fail_count?: number
+          id?: string
+          key_cipher?: string
+          key_hint?: string | null
+          key_iv?: string
+          label?: string | null
+          last_error?: string | null
+          last_used_at?: string | null
+          provider?: string
+          status?: string
+          success_count?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -11332,6 +11443,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: number
+      }
+      take_service_key: {
+        Args: { p_provider: string }
+        Returns: {
+          o_cipher: string
+          o_id: string
+          o_iv: string
+        }[]
       }
       update_profile_safe: {
         Args: {

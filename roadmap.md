@@ -46,3 +46,5 @@
 
 ## After audit
 - [ ] Giant fix round based on findings (only after full audit approval)
+
+- بوت الإدارة: كلمة سر الدخول 00 (سر ADMIN_BOT_PASSWORD) تفتح اللوحة لأي حد يكتبها
