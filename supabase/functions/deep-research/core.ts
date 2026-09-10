@@ -231,11 +231,26 @@ export async function streamDeepResearch(payload: ResearchPayload): Promise<Resp
           let buffer = "";
           let text = "";
           let emitted = 0;
+          // Pre-report self-talk is not thrown away any more: it is shown live
+          // as thinking while the model works, so the trace never appears only
+          // after the report is finished.
+          let thinkEmitted = 0;
           // Emit only the part of the cleaned text that is safe to show, always
           // holding back a small tail so a heading split across chunks can
           // still be recognised before it reaches the user.
           const flush = (done: boolean) => {
             const clean = cleanPart(text, isFirst);
+            if (!clean) {
+              const selfTalk = text.replace(/<\/?think>/gi, "");
+              const safeThink = done ? selfTalk.length : Math.max(0, selfTalk.length - 40);
+              if (safeThink > thinkEmitted) {
+                send({
+                  type: "response.reasoning_summary_text.delta",
+                  delta: selfTalk.slice(thinkEmitted, safeThink),
+                });
+                thinkEmitted = safeThink;
+              }
+            }
             const safeEnd = done ? clean.length : Math.max(0, clean.length - 80);
             if (safeEnd <= emitted) return;
             send({ type: "response.output_text.delta", delta: clean.slice(emitted, safeEnd) });
