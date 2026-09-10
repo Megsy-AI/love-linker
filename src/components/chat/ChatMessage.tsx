@@ -2093,6 +2093,24 @@ const ChatMessage = ({
                     <Copy className="w-[15px] h-[15px]" strokeWidth={1.75} />
                   )}
                 </AIMessageAction>
+                {downloadUrl && (
+                  <AIMessageAction
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = downloadUrl;
+                      a.download = downloadName || "megsy-image.png";
+                      a.target = "_blank";
+                      a.rel = "noreferrer";
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    }}
+                    tooltip="Download"
+                    className="h-7 w-7 rounded-md border-0 bg-transparent text-muted-foreground/70 shadow-none hover:bg-transparent hover:text-foreground"
+                  >
+                    <Download className="w-[15px] h-[15px]" strokeWidth={1.75} />
+                  </AIMessageAction>
+                )}
               </AIMessageActions>
               </div>
             )}
