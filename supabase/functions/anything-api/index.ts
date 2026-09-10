@@ -13,6 +13,7 @@
 // public.get_image_provider_key, then legacy public.api_keys.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { vaultKeys } from "../_shared/keyVault.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +101,12 @@ async function resolveApiKey(
   admin: ReturnType<typeof createClient>,
   service: string,
 ): Promise<string | null> {
+  // Encrypted vault first: rotated least-recently-used, dead keys auto-banned.
+  try {
+    const vault = await vaultKeys(service);
+    if (vault.length) return vault[0].key;
+  } catch { /* fall through */ }
+
   const envKey = Deno.env.get(`${service.toUpperCase()}_API_KEY`);
   if (envKey) return envKey;
 

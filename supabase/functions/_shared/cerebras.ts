@@ -94,59 +94,73 @@ import {
   noteProviderSuccess,
   providerBlocked,
 } from "./providerBreaker.ts";
+import { noteKeyFail, noteKeyOk, vaultKeys, type VaultKey } from "./keyVault.ts";
 
 export interface CerebrasResult {
   response: Response;
   model: string;
 }
 
+/** Vault keys first (rotated, auto-banned), then the function secret. */
+async function candidateKeys(): Promise<VaultKey[]> {
+  const keys = await vaultKeys("cerebras").catch(() => [] as VaultKey[]);
+  const env = cerebrasKey();
+  if (env && !keys.some((k) => k.key === env)) keys.push({ id: "", key: env });
+  return keys;
+}
+
 /**
- * One chat-completions call against Cerebras. Returns null when the provider is
- * unusable (no key, or every model rejected), so callers fall back.
+ * One chat-completions call against Cerebras. Every key in the vault is tried
+ * before giving up, so a single exhausted key never reaches the user as an
+ * error. Returns null only when the provider is genuinely unusable.
  */
 export async function callCerebras(
   models: string[],
   payload: Record<string, unknown>,
   role?: string | null,
 ): Promise<CerebrasResult | null> {
-  const key = cerebrasKey();
-  if (!key) return null;
-  // A billing/auth rejection minutes ago means the same rejection now: skip the
-  // provider entirely instead of paying the round trip again.
-  if (providerBlocked("cerebras")) return null;
+  const keys = await candidateKeys();
+  if (!keys.length) return null;
 
   const preferred = models.length
     ? models.map((m) => cerebrasModelFor(m, role))
     : [cerebrasModelFor(null, role)];
   const ladder = Array.from(new Set([...preferred, ...CEREBRAS_LADDER]));
 
-  // Two passes over the ladder: this provider rate-limits in short bursts, so a
-  // single 429 must not push every caller onto the fallback provider.
+  // Two passes: this provider rate-limits in short bursts, so a single 429 must
+  // not push every caller onto a slower path.
   for (let pass = 0; pass < 2; pass++) {
     let sawRateLimit = false;
-    for (const model of ladder) {
-      if (providerBlocked("cerebras", model)) continue;
-      const body = cerebrasPayload({ ...payload, model });
-      try {
-        const response = await fetch(`${BASE}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${key}`,
-          },
-          body: JSON.stringify({ ...body, model }),
-        });
-        if (response.ok) {
-          noteProviderSuccess("cerebras", model);
-          return { response, model };
+    for (const entry of keys) {
+      for (const model of ladder) {
+        if (entry.id === "" && providerBlocked("cerebras", model)) continue;
+        const body = cerebrasPayload({ ...payload, model });
+        try {
+          const response = await fetch(`${BASE}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${entry.key}`,
+            },
+            body: JSON.stringify({ ...body, model }),
+          });
+          if (response.ok) {
+            noteProviderSuccess("cerebras", model);
+            void noteKeyOk(entry.id || null);
+            return { response, model };
+          }
+          const detail = (await response.text().catch(() => "")).slice(0, 400);
+          console.error(`cerebras ${model} [${response.status}]: ${detail}`);
+          noteProviderFailure("cerebras", model, response.status);
+          if ([401, 402, 403].includes(response.status)) {
+            // This key is dead (bad or out of credit) — retire it and try the next.
+            void noteKeyFail(entry.id || null, `${response.status}: ${detail}`);
+            break;
+          }
+          if (response.status === 429) sawRateLimit = true;
+        } catch (error) {
+          console.error("cerebras request failed", error);
         }
-        const detail = (await response.text().catch(() => "")).slice(0, 400);
-        console.error(`cerebras ${model} [${response.status}]: ${detail}`);
-        noteProviderFailure("cerebras", model, response.status);
-        if ([401, 402, 403].includes(response.status)) return null;
-        if (response.status === 429) sawRateLimit = true;
-      } catch (error) {
-        console.error("cerebras request failed", error);
       }
     }
     if (!sawRateLimit) break;

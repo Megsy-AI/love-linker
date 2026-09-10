@@ -8,6 +8,7 @@
  *
  * Text models are a separate concern and live in `abliteration.ts`.
  */
+import { noteKeyFail, noteKeyOk, vaultKeys, type VaultKey } from "./keyVault.ts";
 
 const BU_BASE = Deno.env.get("BROWSER_USE_API_BASE") || "https://api.browser-use.com/api/v2";
 
@@ -26,8 +27,13 @@ interface Admin {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Browser Use keys: the dedicated table first, then legacy pools, then env. */
-async function buKey(admin: Admin | null): Promise<string | null> {
+/** Browser Use keys: encrypted vault first, then legacy pools, then env. */
+async function buKeys(admin: Admin | null): Promise<VaultKey[]> {
+  const out: VaultKey[] = await vaultKeys("browser-use").catch(() => [] as VaultKey[]);
+  const push = (key?: string | null) => {
+    const k = key?.trim();
+    if (k && k.length > 12 && !out.some((e) => e.key === k)) out.push({ id: "", key: k });
+  };
   if (admin) {
     const now = Date.now();
     const [{ data: dedicated }, { data: legacy }, { data: shared }] = await Promise.all([
@@ -58,22 +64,23 @@ async function buKey(admin: Admin | null): Promise<string | null> {
         (row) => !row.cooldown_until || new Date(row.cooldown_until).getTime() <= now,
       );
     for (const row of [...usable(dedicated), ...usable(legacy), ...usable(shared)]) {
-      const key = row.api_key?.trim();
-      if (key && key.length > 12) return key;
+      push(row.api_key);
     }
   }
-  return Deno.env.get("BROWSER_USE_API_KEY")?.trim() || null;
+  push(Deno.env.get("BROWSER_USE_API_KEY"));
+  return out;
 }
 
 
 /* ------------------------------- Browser Use ------------------------------ */
 
+/** `"auth"` means this key itself is unusable, so the caller rotates to the next. */
 async function runBrowserUse(
   key: string,
   task: string,
   budgetMs: number,
   onStep?: AgentProgress,
-): Promise<CloudAgentResult | null> {
+): Promise<CloudAgentResult | null | { retryOtherKey: string }> {
   const headers = { "X-Browser-Use-API-Key": key, "Content-Type": "application/json" };
 
   // Free plans reject premium models with 403 "not available on the free plan",
@@ -101,6 +108,10 @@ async function runBrowserUse(
     if (created.ok) break;
     const failMsg = (await created.text().catch(() => "")).slice(0, 300);
     console.error("browser-use create failed", created.status, llm ?? "default", failMsg);
+    // Credit/auth rejections belong to the key, not the model: rotate.
+    if ([401, 402, 403].includes(created.status) && !/not available on the/i.test(failMsg)) {
+      return { retryOtherKey: `${created.status}: ${failMsg}` };
+    }
     // Only a model-rejection is worth another model; anything else is terminal.
     if (!/not available on the|body.*llm|Input should be/i.test(failMsg)) return null;
   }
@@ -155,8 +166,8 @@ async function runBrowserUse(
 /* --------------------------------- Public -------------------------------- */
 
 /**
- * Runs one goal on Browser Use Cloud. Returns null when no key is available or
- * the run produced nothing.
+ * Runs one goal on Browser Use Cloud, rotating through every available key so a
+ * single exhausted key never surfaces as a user-visible failure.
  */
 export async function runCloudAgent(
   admin: Admin | null,
@@ -164,9 +175,17 @@ export async function runCloudAgent(
   options: { budgetMs?: number; onStep?: AgentProgress } = {},
 ): Promise<CloudAgentResult | null> {
   const budgetMs = Math.min(Math.max(options.budgetMs ?? 180_000, 20_000), 900_000);
-  const key = await buKey(admin);
-  if (!key) return null;
-  return await runBrowserUse(key, goal, budgetMs, options.onStep);
+  const keys = await buKeys(admin);
+  for (const entry of keys) {
+    const outcome = await runBrowserUse(entry.key, goal, budgetMs, options.onStep);
+    if (outcome && "retryOtherKey" in outcome) {
+      void noteKeyFail(entry.id || null, outcome.retryOtherKey);
+      continue;
+    }
+    if (outcome) void noteKeyOk(entry.id || null);
+    return outcome;
+  }
+  return null;
 }
 
 /** True when a Browser Use key is configured as a function secret. */
