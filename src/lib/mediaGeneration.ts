@@ -53,6 +53,42 @@ function startProgressTicker(
   };
 }
 
+/** Last-resort image models: always-available slugs tried when the chosen one fails. */
+const IMAGE_FALLBACK_SLUGS = ["deapi-image", "deapi-flux-schnell"];
+
+async function requestImage(
+  scene: MediaPlanScene,
+  modelSlug: string,
+  refs: string[],
+  aspectRatio?: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke(IMAGE_FN, {
+    body: {
+      prompt: scene.prompt,
+      model_slug: modelSlug,
+      num_images: 1,
+      aspect_ratio: aspectRatio,
+      ...(refs.length > 0
+        ? {
+            reference_image_url: refs[0],
+            image_url: refs[0],
+            reference_image_urls: refs,
+          }
+        : {}),
+    },
+  });
+  if (error) throw new Error(error.message || "image gen failed");
+  if (data?.paywall) {
+    const e = new Error(data.message || "Upgrade required");
+    (e as any).paywall = true;
+    throw e;
+  }
+  if (data?.error) throw new Error(data.message || data.error);
+  const url = data?.image_url || (Array.isArray(data?.image_urls) ? data.image_urls[0] : null);
+  if (!url) throw new Error("no image returned");
+  return url;
+}
+
 async function generateImageScene(
   scene: MediaPlanScene,
   modelSlug: string,
@@ -67,33 +103,27 @@ async function generateImageScene(
     : scene.reference_image_url
       ? [scene.reference_image_url]
       : [];
+  // A provider hiccup (503 / out-of-credit key) must never surface as a failed
+  // picture: retry the chosen model once, then walk the always-on fallbacks.
+  const attempts = [modelSlug, modelSlug, ...IMAGE_FALLBACK_SLUGS.filter((s) => s !== modelSlug)];
   try {
-    const { data, error } = await supabase.functions.invoke(IMAGE_FN, {
-      body: {
-        prompt: scene.prompt,
-        model_slug: modelSlug,
-        num_images: 1,
-        aspect_ratio: aspectRatio,
-        ...(refs.length > 0
-          ? {
-              reference_image_url: refs[0],
-              image_url: refs[0],
-              reference_image_urls: refs,
-            }
-          : {}),
-      },
-    });
-    if (error) throw new Error(error.message || "image gen failed");
-    if (data?.paywall) throw new Error(data.message || "Upgrade required");
-    if (data?.error) throw new Error(data.message || data.error);
-    const url = data?.image_url || (Array.isArray(data?.image_urls) ? data.image_urls[0] : null);
-    if (!url) throw new Error("no image returned");
-    onPartial?.(scene.index, url, 1);
-    return url;
+    let lastErr: unknown = null;
+    for (const slug of attempts) {
+      try {
+        const url = await requestImage(scene, slug, refs, aspectRatio);
+        onPartial?.(scene.index, url, 1);
+        return url;
+      } catch (e) {
+        if ((e as any)?.paywall) throw e;
+        lastErr = e;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("image gen failed");
   } finally {
     stopTicker();
   }
 }
+
 
 /**
  * Reserves one video from the caller's monthly allowance. Enforced in the

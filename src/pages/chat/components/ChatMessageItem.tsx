@@ -152,12 +152,16 @@ const ChatMessageItemImpl = ({
   // Like / dislike / copy / download must never appear before the picture
   // itself: while a media turn is still producing its result the action row
   // stays hidden, so the card fills in text → loading light → image → actions.
+  const mediaDone =
+    msg.mediaStatus === "done" ||
+    msg.mediaStatus === "cancelled" ||
+    (msg.images && msg.images.length > 0) ||
+    (msg.videos && msg.videos.length > 0) ||
+    (msg.audios && msg.audios.length > 0);
   const mediaPending =
     msg.role === "assistant" &&
     (msg.mode === "images" || msg.mode === "video" || !!msg.mediaPlan || !!msg.videoJobId) &&
-    !(msg.images && msg.images.length > 0) &&
-    !(msg.videos && msg.videos.length > 0) &&
-    !(msg.audios && msg.audios.length > 0);
+    !mediaDone;
   const content = (
     <>
       {showMediaSkeleton ? null : msg.role === "assistant" && msg.longRunId ? (
