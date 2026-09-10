@@ -824,6 +824,8 @@ const ChatMessage = ({
   showReaders,
   bottomSlot,
   hideActions,
+  downloadUrl,
+  downloadName,
   onRegenerate,
   onResume,
   onBranch,
