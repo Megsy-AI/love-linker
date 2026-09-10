@@ -75,20 +75,37 @@ async function runBrowserUse(
   onStep?: AgentProgress,
 ): Promise<CloudAgentResult | null> {
   const headers = { "X-Browser-Use-API-Key": key, "Content-Type": "application/json" };
-  const created = await fetch(`${BU_BASE}/tasks`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      task: task.slice(0, 50_000),
-      llm: Deno.env.get("BROWSER_USE_LLM") || undefined,
-      maxSteps: 60,
-      vision: "auto",
-    }),
-  });
-  if (!created.ok) {
-    console.error("browser-use create failed", created.status, (await created.text().catch(() => "")).slice(0, 300));
-    return null;
+
+  // Free plans reject premium models with 403 "not available on the free plan",
+  // so start from a free-plan model and only then try the configured one.
+  const FREE_PLAN_LLMS = ["bu-2-0-mini-preview", "browser-use-llm", "gemini-2.5-flash"];
+  const configuredLlm = Deno.env.get("BROWSER_USE_LLM")?.trim() || undefined;
+  const llmCandidates: (string | undefined)[] = [
+    ...FREE_PLAN_LLMS,
+    ...(configuredLlm && !FREE_PLAN_LLMS.includes(configuredLlm) ? [configuredLlm] : []),
+    undefined,
+  ];
+
+  let created: Response | null = null;
+  for (const llm of llmCandidates) {
+    created = await fetch(`${BU_BASE}/tasks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        task: task.slice(0, 50_000),
+        llm,
+        maxSteps: 60,
+        vision: "auto",
+      }),
+    });
+    if (created.ok) break;
+    const failMsg = (await created.text().catch(() => "")).slice(0, 300);
+    console.error("browser-use create failed", created.status, llm ?? "default", failMsg);
+    // Only a model-rejection is worth another model; anything else is terminal.
+    if (!/not available on the|body.*llm|Input should be/i.test(failMsg)) return null;
   }
+  if (!created?.ok) return null;
+
   const info = await created.json().catch(() => null) as { id?: string; task_id?: string } | null;
   const id = info?.id || info?.task_id;
   if (!id) return null;
