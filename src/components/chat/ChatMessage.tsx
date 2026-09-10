@@ -148,6 +148,9 @@ interface ChatMessageProps {
   bottomSlot?: React.ReactNode;
   /** Hide action buttons (copy/like/dislike) — used when an interactive clarify card is shown below. */
   hideActions?: boolean;
+  /** When set, a download action is shown next to like / dislike / copy. */
+  downloadUrl?: string;
+  downloadName?: string;
   /** When set, shows a "Regenerate" button on assistant messages. */
   onRegenerate?: () => void;
   /** When set (and message is interrupted), the Resume button calls this instead of onRegenerate — it should continue rather than restart. */
