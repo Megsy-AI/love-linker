@@ -48,3 +48,6 @@ verify_jwt = false
 
 [functions.manus-proxy]
 verify_jwt = false
+
+[functions.telegram-admin-bot]
+verify_jwt = false
