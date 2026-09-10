@@ -633,15 +633,14 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         : prompt;
 
       // Browser Use rejects models that the account's plan does not include
-      // (403 "not available on the free plan"), so walk a candidate ladder
-      // starting from the configured model.
+      // (403 "not available on the free plan"), so always start from a
+      // free-plan model and only then try the configured / premium ones.
+      // A premium first attempt costs a full round-trip before the run starts.
+      const FREE_PLAN_LLMS = ["bu-2-0-mini-preview", "browser-use-llm", "gemini-2.5-flash"];
+      const configuredLlm = Deno.env.get("BROWSER_USE_LLM")?.trim() || undefined;
       const llmCandidates = [
-        Deno.env.get("BROWSER_USE_LLM")?.trim() || undefined,
-        // Free-plan model first: the premium ones 403 on a free account and
-        // every rejected attempt just delays the start of the run.
-        "bu-2-0-mini-preview",
-        "browser-use-llm",
-        "gemini-2.5-flash",
+        ...FREE_PLAN_LLMS,
+        ...(configuredLlm && !FREE_PLAN_LLMS.includes(configuredLlm) ? [configuredLlm] : []),
         undefined,
       ];
 
