@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CostConfirmationHost } from "@/components/billing/CostConfirmationHost";
+import PageViewTracker from "@/components/analytics/PageViewTracker";
 import ErrorBoundary, { RouteErrorBoundary } from "@/components/common/ErrorBoundary";
 import TranslationWrapper from "@/components/common/TranslationWrapper";
 import MarketingTypographyScope from "@/components/common/MarketingTypographyScope";
