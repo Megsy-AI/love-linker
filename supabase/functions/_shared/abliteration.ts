@@ -194,10 +194,12 @@ export async function callModel(
               .update({ last_used_at: new Date().toISOString(), last_error: null })
               .eq("id", entry.id);
           }
+          noteProviderSuccess("abliteration", model);
           return { response, model, keyId: entry.id };
         }
         const detail = (await response.text().catch(() => "")).slice(0, 400);
         console.error(`abliteration ${model} [${response.status}]: ${detail}`);
+        noteProviderFailure("abliteration", model, response.status);
         if (entry.id && admin && [401, 402, 403, 429].includes(response.status)) {
           void admin
             .from("abliteration_keys")
