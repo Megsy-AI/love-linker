@@ -125,6 +125,7 @@ export async function callCerebras(
   for (let pass = 0; pass < 2; pass++) {
     let sawRateLimit = false;
     for (const model of ladder) {
+      if (providerBlocked("cerebras", model)) continue;
       const body = cerebrasPayload({ ...payload, model });
       try {
         const response = await fetch(`${BASE}/chat/completions`, {
