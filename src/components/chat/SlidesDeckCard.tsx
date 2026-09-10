@@ -140,6 +140,58 @@ export function parseVariant(layoutOrVariant: string | undefined) {
 }
 
 /* ============================================================
+ * Per-slide surfaces — a deck must never look like the same
+ * background repeated N times. Each slide derives a deterministic
+ * surface recipe from its own content, so the deck varies while a
+ * given slide always renders identically (exports included).
+ * ============================================================ */
+function hashSeed(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+/** Mixes a hex colour toward white (amount > 0) or black (amount < 0). */
+function shiftHex(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const parts = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const target = amount >= 0 ? 255 : 0;
+    const v = Math.round(c + (target - c) * Math.min(1, Math.abs(amount)));
+    return Math.max(0, Math.min(255, v));
+  });
+  return `#${parts.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function slideSurface(
+  seed: number,
+  palette: { bg: string; accent: string; primary: string },
+  isCover: boolean,
+): string {
+  const base = palette.bg;
+  const soft = shiftHex(base, 0.1);
+  const deep = shiftHex(base, -0.18);
+  const recipes = [
+    `linear-gradient(135deg, ${base} 0%, ${deep} 100%)`,
+    `radial-gradient(120% 90% at 15% 10%, ${soft} 0%, ${base} 55%, ${deep} 100%)`,
+    `linear-gradient(200deg, ${deep} 0%, ${base} 45%, ${soft} 100%)`,
+    `radial-gradient(90% 80% at 85% 20%, ${palette.accent}26 0%, ${base} 50%, ${deep} 100%)`,
+    `linear-gradient(90deg, ${base} 0%, ${base} 62%, ${palette.accent}1f 100%)`,
+    `radial-gradient(100% 100% at 50% 110%, ${palette.accent}2b 0%, ${base} 45%, ${deep} 100%)`,
+    `linear-gradient(160deg, ${soft} 0%, ${base} 40%, ${deep} 100%)`,
+  ];
+  // Covers get the most dramatic treatment; body slides rotate the rest.
+  if (isCover) return recipes[3];
+  return recipes[seed % recipes.length];
+}
+
+
+
+/* ============================================================
  * ScaledSlide — fixed 1920x1080 canvas, scales to fit parent.
  * ============================================================ */
 function ScaledSlide({ children, portrait = false }: { children: React.ReactNode; portrait?: boolean }) {
@@ -242,6 +294,15 @@ function SlideRender({
     primary: palette?.primary || "#111827",
   };
   const accentColor = (vAccent && ACCENT_HEX[vAccent]) || safePalette.accent;
+  // Deterministic surface per slide: same slide always looks the same, but
+  // neighbouring slides never share one flat background.
+  const surfaceBackground = slideSurface(
+    hashSeed(
+      `${slide.type || ""}|${layout}|${slide.title || slide.quote || slide.subtitle || ""}`,
+    ),
+    safePalette,
+    isCover,
+  );
   // Alignment: text-align honored when explicit.
   const alignClass =
     vAlign === "center"
@@ -261,7 +322,7 @@ function SlideRender({
       className={`slide-content flex ${ornamentClass}`}
       data-density={vDensity || "balanced"}
       style={{
-        background: safePalette.bg,
+        background: surfaceBackground,
         color: safePalette.fg,
         direction: dir,
         width: portrait ? 1080 : 1920,
