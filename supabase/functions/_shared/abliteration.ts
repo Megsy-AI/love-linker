@@ -161,6 +161,8 @@ export async function callModel(
   const cerebras = await callCerebras(models, payload, role);
   if (cerebras) return { response: cerebras.response, model: cerebras.model };
 
+  if (providerBlocked("abliteration")) return null;
+
   const keys = await modelKeys(admin);
   if (!keys.length) {
     console.error("abliteration: no key configured");
