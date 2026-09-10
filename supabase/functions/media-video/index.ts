@@ -13,6 +13,7 @@
  *   { error: true, message }
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { vaultKeys } from "../_shared/keyVault.ts";
 import {
   DEAPI_VIDEO,
   deapiVideoSubmit,
@@ -45,6 +46,13 @@ function isUnlimitedModel(slug: string): boolean {
 }
 
 async function acquireKey(provider: string, modelId: string) {
+  // Encrypted vault first (rotated, auto-banned), then the legacy media pool.
+  try {
+    const vault = await vaultKeys(provider);
+    if (vault.length) {
+      return { keyId: vault[0].id, apiKey: vault[0].key, workspaceId: null };
+    }
+  } catch { /* fall through */ }
   const { data, error } = await admin.rpc("acquire_media_key", { p_provider: provider, p_model_id: modelId });
   if (error) return null;
   const row = Array.isArray(data) ? data[0] : data;
