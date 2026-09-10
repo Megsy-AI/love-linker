@@ -89,6 +89,12 @@ export function cerebrasPayload(payload: Record<string, unknown>): Record<string
   return out;
 }
 
+import {
+  noteProviderFailure,
+  noteProviderSuccess,
+  providerBlocked,
+} from "./providerBreaker.ts";
+
 export interface CerebrasResult {
   response: Response;
   model: string;
