@@ -166,8 +166,8 @@ async function runBrowserUse(
 /* --------------------------------- Public -------------------------------- */
 
 /**
- * Runs one goal on Browser Use Cloud. Returns null when no key is available or
- * the run produced nothing.
+ * Runs one goal on Browser Use Cloud, rotating through every available key so a
+ * single exhausted key never surfaces as a user-visible failure.
  */
 export async function runCloudAgent(
   admin: Admin | null,
@@ -175,9 +175,17 @@ export async function runCloudAgent(
   options: { budgetMs?: number; onStep?: AgentProgress } = {},
 ): Promise<CloudAgentResult | null> {
   const budgetMs = Math.min(Math.max(options.budgetMs ?? 180_000, 20_000), 900_000);
-  const key = await buKey(admin);
-  if (!key) return null;
-  return await runBrowserUse(key, goal, budgetMs, options.onStep);
+  const keys = await buKeys(admin);
+  for (const entry of keys) {
+    const outcome = await runBrowserUse(entry.key, goal, budgetMs, options.onStep);
+    if (outcome && "retryOtherKey" in outcome) {
+      void noteKeyFail(entry.id || null, outcome.retryOtherKey);
+      continue;
+    }
+    if (outcome) void noteKeyOk(entry.id || null);
+    return outcome;
+  }
+  return null;
 }
 
 /** True when a Browser Use key is configured as a function secret. */
