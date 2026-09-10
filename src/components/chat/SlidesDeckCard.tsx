@@ -322,7 +322,7 @@ function SlideRender({
       className={`slide-content flex ${ornamentClass}`}
       data-density={vDensity || "balanced"}
       style={{
-        background: safePalette.bg,
+        background: surfaceBackground,
         color: safePalette.fg,
         direction: dir,
         width: portrait ? 1080 : 1920,
