@@ -373,11 +373,12 @@ const PricingPage = () => {
           tier,
           interval,
           trial,
-          // A trial checkout is the card-linked 3-day free trial.
+          // A trial checkout is the $1 / 3-day offer.
           free_trial: trial,
           provider,
-          // Dodo product to open (server may override from its own catalog).
-          product_id: dodoProductId(interval, hasAbandonedCheckout()),
+          // Dodo product to open. The trial has its own product in Dodo, so the
+          // server picks it instead of the standard monthly product.
+          ...(trial ? {} : { product_id: dodoProductId(interval, hasAbandonedCheckout()) }),
         },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
