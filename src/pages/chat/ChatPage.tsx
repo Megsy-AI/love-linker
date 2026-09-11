@@ -1450,11 +1450,12 @@ const ChatPage = () => {
       await new Promise((r) => setTimeout(r, 60));
     }
     if (isSubmittingRef.current) {
-      // Release locks older than 15s instead of blocking the composer for a
-      // full minute after a branch that forgot to unlock.
-      if (Date.now() - submitLockAtRef.current < 15_000) return;
+      // Only a true double-tap (same 2.5s) is swallowed; anything older never
+      // blocks a new message, whatever else is still running in the background.
+      if (Date.now() - submitLockAtRef.current < 2_500) return;
       isSubmittingRef.current = false;
     }
+
 
     // Streak/achievement bookkeeping is telemetry, not part of the send path.
     // It used to be `await`ed here, which meant the user's own bubble could not

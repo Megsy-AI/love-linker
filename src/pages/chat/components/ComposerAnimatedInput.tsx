@@ -140,7 +140,9 @@ export function ComposerAnimatedInput(props: ComposerAnimatedInputProps) {
         setPlusMenuOpen(!plusMenuOpen);
       }}
       disabled={!!remoteAiBusy}
-      isLoading={isLoading || !!activeResearchJobId || !!activeComputerRunId}
+      // The send button must NEVER lock: a running computer task no longer turns it
+      // into a stop button, so the user can start another task at any moment.
+      isLoading={isLoading || !!activeResearchJobId}
       pendingQuestions={pendingQuestions}
       onQuestionAnswer={handleQuestionAnswer}
       onQuestionSkip={handleQuestionSkip}
