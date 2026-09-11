@@ -1129,9 +1129,22 @@ const ChatPage = () => {
     setPendingQuestions([]);
     setNarrations([]);
     setClarifyQs(null);
-    setLoadingMessages(true);
-    setMessages([]);
     setSystemEvents([]);
+
+    // Instant open: paint the last known local copy of this conversation
+    // before any network call, then revalidate silently below. Display-only —
+    // permissions and billing always come from the server.
+    const cached = readLocalData<{ title?: string; messages: Message[] }>(`conv:${id}`);
+    if (cached?.messages?.length) {
+      setConversationTitle(cached.title || "Untitled");
+      setMessages(cached.messages);
+      setLoadingMessages(false);
+      setTimeout(() => scrollToBottom(), 50);
+    } else {
+      setLoadingMessages(true);
+      setMessages([]);
+    }
+
     const { data: conv } = await supabase
       .from("conversations")
       .select("title, is_shared, share_id, is_pinned, mode, user_id")
