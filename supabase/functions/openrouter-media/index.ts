@@ -160,6 +160,8 @@ async function handleCheckout(req: Request, payload: Record<string, unknown>) {
       interval: payload.interval ?? "monthly",
       tier: payload.tier ?? "pro",
       offer: payload.offer ?? null,
+      // The onboarding offer is a card-linked 3-day free trial.
+      free_trial: payload.free_trial === true || payload.trial === true,
       product_id: payload.product_id ?? null,
       country: payload.country ?? undefined,
     },

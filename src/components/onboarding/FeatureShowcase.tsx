@@ -14,6 +14,9 @@ const AUTH_HERO_MP4 = "/route-assets/auth/auth-hero-v6.mp4";
 
 type Direction = "next" | "prev";
 
+/** Index of the last onboarding slide (the free-trial offer). */
+const LAST = 3;
+
 const SCREENS = [
   {
     image: welcomeResearch,
@@ -29,12 +32,17 @@ const SCREENS = [
   },
 ] as const;
 
-export default function FeatureShowcase({ onFinish }: { onFinish?: () => void }) {
+export default function FeatureShowcase({
+  onFinish,
+}: {
+  onFinish?: (target?: "trial") => void;
+}) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState<Direction>("next");
   const touch = useRef({ x: 0, y: 0 });
   const [region] = useState<PayRegion>(() => getPayRegionOrGuess());
   const isPro = index === 2;
+  const isTrial = index === LAST;
 
   useEffect(() => {
     setPayRegion(region);
@@ -58,7 +66,7 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
 
   const goTo = useCallback((target: number) => {
     setIndex((current) => {
-      const nextIndex = Math.max(0, Math.min(2, target));
+      const nextIndex = Math.max(0, Math.min(LAST, target));
       if (nextIndex === current) return current;
       setDirection(nextIndex > current ? "next" : "prev");
       return nextIndex;
@@ -95,8 +103,8 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
   }, [goTo, index]);
 
   const continueFlow = () => {
-    if (isPro) {
-      onFinish?.();
+    if (isTrial) {
+      onFinish?.("trial");
       return;
     }
     goTo(index + 1);
@@ -131,7 +139,9 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
           direction === "next" ? "welcome-screen-enter-next" : "welcome-screen-enter-prev"
         }`}
       >
-        {isPro ? (
+        {isTrial ? (
+          <TrialScreen />
+        ) : isPro ? (
           <ProScreen />
         ) : (
           <IntroScreen screen={SCREENS[index]} eager={index === 0} />
@@ -141,8 +151,8 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
       <div
         className="absolute inset-x-0 bottom-0 z-20 bg-[hsl(var(--welcome-paper))] px-6 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 sm:mx-auto sm:max-w-md"
       >
-        <div className="mb-3 flex justify-center gap-2" aria-label={`Step ${index + 1} of 3`}>
-          {[0, 1, 2].map((step) => (
+        <div className="mb-3 flex justify-center gap-2" aria-label={`Step ${index + 1} of 4`}>
+          {[0, 1, 2, 3].map((step) => (
             <Button
               key={step}
               type="button"
@@ -171,9 +181,21 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
           onClick={continueFlow}
           className="h-14 w-full rounded-md bg-[hsl(var(--welcome-ink))] text-base font-bold !text-[hsl(var(--welcome-paper))] shadow-none hover:bg-[hsl(var(--welcome-ink)/.9)]"
         >
-          {isPro ? "Start now" : "Continue"}
-          {!isPro && <ArrowRight className="size-5" />}
+          {isTrial ? "Start 3 days free" : "Continue"}
+          {!isTrial && <ArrowRight className="size-5" />}
         </Button>
+
+        {isTrial && (
+          <Button
+            type="button"
+            variant="ghost"
+            data-plain
+            onClick={finishWithoutOffer}
+            className="mt-2 h-10 w-full rounded-md text-sm font-semibold text-[hsl(var(--welcome-muted))] hover:bg-transparent"
+          >
+            Maybe later
+          </Button>
+        )}
       </div>
     </main>
   );
@@ -235,6 +257,34 @@ function ProScreen() {
         </h2>
         <p className="mt-4 max-w-[330px] text-[16px] font-medium leading-6 text-[hsl(var(--welcome-muted))]">
           More powerful models, longer tasks, and bigger creations with Megsy Pro.
+        </p>
+      </div>
+    </div>
+  );
+}
+function TrialScreen() {
+  return (
+    <div className="mx-auto flex h-full w-full max-w-md flex-col pb-44 sm:max-w-lg">
+      <div className="relative h-[60dvh] min-h-[380px] max-h-[620px] w-full overflow-hidden">
+        <img
+          src={welcomePro}
+          alt="Woman holding a Megsy Pro card toward the camera"
+          width={1024}
+          height={1280}
+          loading="eager"
+          fetchPriority="high"
+          className="h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[hsl(var(--welcome-paper))] to-transparent" />
+      </div>
+
+      <div className="relative z-10 px-7 pt-5 text-left">
+        <h2 className="max-w-[330px] text-[38px] font-extrabold leading-[1.03] text-[hsl(var(--welcome-ink))] sm:text-[42px]">
+          3 days free.
+        </h2>
+        <p className="mt-4 max-w-[330px] text-[16px] font-medium leading-6 text-[hsl(var(--welcome-muted))]">
+          Try Megsy Pro free for 3 days — unlimited premium images and the strongest models.
+          After the trial it continues at $7 for the first month, and you can cancel anytime.
         </p>
       </div>
     </div>

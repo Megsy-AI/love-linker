@@ -369,6 +369,8 @@ const PricingPage = () => {
           tier,
           interval,
           trial,
+          // A trial checkout is the card-linked 3-day free trial.
+          free_trial: trial,
           provider,
           // Dodo product to open (server may override from its own catalog).
           product_id: dodoProductId(interval, hasAbandonedCheckout()),
@@ -398,6 +400,18 @@ const PricingPage = () => {
       setGatewaySheet(null);
     }
   };
+
+  // Arriving from the onboarding "3 days free" button opens trial checkout once.
+  const trialAutoStarted = useRef(false);
+  useEffect(() => {
+    if (trialAutoStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("offer") !== "free_trial") return;
+    trialAutoStarted.current = true;
+    void handleSubscribe("pro", { trial: true, interval: "monthly" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const scrollTo = (id: string) => {
     if (id.startsWith("#")) {

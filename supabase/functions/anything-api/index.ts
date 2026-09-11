@@ -1249,8 +1249,44 @@ Deno.serve(async (req) => {
 
     // ----- billing -----
     const unitCost = Number(model?.unit_cost_usd ?? 0);
-    const credits = unitCost > 0 ? Math.max(1, Number(model?.credits ?? 1)) : 0;
+    let credits = unitCost > 0 ? Math.max(1, Number(model?.credits ?? 1)) : 0;
     let userId: string | null = null;
+
+    // Premium (non-free) image models: 3 per UTC day without a subscription,
+    // unlimited for subscribers. Enforced in Postgres, so the UI can't bypass.
+    const isPremiumModel = !slug.startsWith("deapi-");
+    if (isPremiumModel) {
+      const authHeader = req.headers.get("authorization") ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (token) {
+        const userClient = createClient(
+          SUPABASE_URL,
+          Deno.env.get("SUPABASE_ANON_KEY") ?? SERVICE_KEY,
+        );
+        const { data: userData } = await userClient.auth.getUser(token);
+        userId = userData?.user?.id ?? null;
+      }
+      if (!userId) {
+        return json({
+          error: true,
+          paywall: true,
+          message: "سجّل الدخول لاستخدام النماذج المتقدمة (3 صور يوميًا مجانًا).",
+        });
+      }
+      const { data: quota } = await admin.rpc("consume_premium_image", { p_user_id: userId });
+      const q: any = quota ?? {};
+      if (q.allowed === false) {
+        return json({
+          error: true,
+          paywall: true,
+          message:
+            "خلصت الـ3 صور المجانية بتاعة اليوم من النماذج المتقدمة. اشترك في Megsy Pro لتوليد غير محدود.",
+        });
+      }
+      // The daily allowance covers the cost, so no credits are charged.
+      if (q.unlimited === true || q.allowed === true) credits = 0;
+    }
+
     if (credits > 0) {
       const authHeader = req.headers.get("authorization") ?? "";
       const token = authHeader.replace(/^Bearer\s+/i, "");

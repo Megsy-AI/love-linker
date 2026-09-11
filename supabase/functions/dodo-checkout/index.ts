@@ -26,15 +26,21 @@ function json(body: unknown, status = 200) {
 const PLANS: Record<string, { plan: string; amount: number; credits: number }> = {
   monthly: { plan: "pro", amount: 20, credits: 1000 },
   monthly_intro: { plan: "pro", amount: 7, credits: 1000 },
+  // Card-linked 3-day free trial, then the $7 monthly plan charges automatically.
+  monthly_trial: { plan: "pro", amount: 7, credits: 1000 },
   monthly_winback: { plan: "pro", amount: 5, credits: 1000 },
   yearly: { plan: "pro", amount: 160, credits: 12000 },
   yearly_winback: { plan: "pro", amount: 149, credits: 12000 },
 };
 
+/** Free-trial length (days) per catalogue key. */
+const TRIAL_DAYS: Record<string, number> = { monthly_trial: 3 };
+
 // Legacy SKUs still sent by older clients -> catalogue key.
 const SKU_TO_KEY: Record<string, string> = {
   plan_pro_m: "monthly",
   plan_pro_m_first: "monthly_intro",
+  plan_pro_m_trial: "monthly_trial",
   plan_pro_m_winback: "monthly_winback",
   plan_pro_y: "yearly",
   plan_pro_y_winback: "yearly_winback",
@@ -52,10 +58,12 @@ function resolveKey(p: Record<string, unknown>): string | null {
   const yearly = /year|annual|y$/.test(raw);
   const offer = String(p.offer ?? "").toLowerCase();
   const winback = p.winback === true || /winback|win_back|return/.test(offer);
+  const freeTrial = p.free_trial === true || /free_trial|trial3|3day|3-day/.test(offer);
   const intro = p.trial === true || p.intro === true || /intro|first|trial/.test(offer);
 
   if (yearly) return winback ? "yearly_winback" : "yearly";
   if (winback) return "monthly_winback";
+  if (freeTrial) return "monthly_trial";
   if (intro) return "monthly_intro";
   return "monthly";
 }
@@ -89,19 +97,27 @@ Deno.serve(async (req) => {
   const info = key ? PLANS[key] : null;
   if (!key || !info) return json({ error: "unknown plan" }, 400);
 
-  // Resolve the exact Dodo product for this catalogue key.
-  const { data: product } = await admin
-    .from("dodo_products")
-    .select("product_id,interval")
-    .eq("interval", key)
-    .eq("active", true)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const productId = String(payload.product_id ?? "") || product?.product_id || "";
+  // Resolve the exact Dodo product for this catalogue key. The trial offer runs
+  // on the $7 monthly product, so it falls back to `monthly_intro` when no
+  // dedicated trial product exists in the catalogue.
+  const productKeys = key === "monthly_trial" ? [key, "monthly_intro", "monthly"] : [key];
+  let productId = String(payload.product_id ?? "");
+  for (const candidate of productKeys) {
+    if (productId) break;
+    const { data: product } = await admin
+      .from("dodo_products")
+      .select("product_id,interval")
+      .eq("interval", candidate)
+      .eq("active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    productId = product?.product_id ?? "";
+  }
   if (!productId) {
     return json({ error: `No Dodo product configured for "${key}"` }, 503);
   }
+  const trialDays = TRIAL_DAYS[key] ?? 0;
   const isSubscription = true; // every catalogue entry is a recurring plan
 
   const orderId = `dodo_${crypto.randomUUID()}`;
@@ -120,7 +136,7 @@ Deno.serve(async (req) => {
 
   if (insertErr) return json({ error: insertErr.message }, 500);
 
-  const body = {
+  const body: Record<string, unknown> = {
     payment_link: true,
     return_url: `${siteUrl}/billing/success?provider=dodo&order=${orderId}`,
     customer: { email: user.email ?? "", name: user.user_metadata?.full_name ?? user.email ?? "" },
@@ -131,18 +147,36 @@ Deno.serve(async (req) => {
       street: String(payload.street ?? "NA"),
       zipcode: String(payload.zipcode ?? "00000"),
     },
-    metadata: { order_id: orderId, user_id: user.id, sku, credits: String(info.credits), plan: info.plan },
+    metadata: {
+      order_id: orderId,
+      user_id: user.id,
+      sku,
+      credits: String(info.credits),
+      plan: info.plan,
+      trial_days: String(trialDays),
+    },
     ...(isSubscription
       ? { product_id: productId, quantity: 1 }
       : { product_cart: [{ product_id: productId, quantity: 1 }] }),
+    ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
   };
 
-  const res = await fetch(`${API_BASE}/${isSubscription ? "subscriptions" : "payments"}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
+  const call = (payloadBody: Record<string, unknown>) =>
+    fetch(`${API_BASE}/${isSubscription ? "subscriptions" : "payments"}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payloadBody),
+    });
+
+  let res = await call(body);
+  let data = await res.json().catch(() => ({}));
+  // Some Dodo products carry the trial on the product itself and reject the
+  // per-subscription field — retry once without it so checkout still opens.
+  if (!res.ok && trialDays > 0) {
+    const { trial_period_days: _omit, ...withoutTrial } = body;
+    res = await call(withoutTrial);
+    data = await res.json().catch(() => ({}));
+  }
   if (!res.ok) {
     await admin.from("dodo_orders").update({ status: "failed", raw: data }).eq("order_id", orderId);
     return json({ error: `Dodo error ${res.status}`, details: data }, 502);

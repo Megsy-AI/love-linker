@@ -21,7 +21,7 @@ export default function WelcomeShowcasePage() {
 
   return (
     <FeatureShowcase
-      onFinish={async () => {
+      onFinish={async (target) => {
         try {
           localStorage.setItem("megsy_seen_welcome", "1");
         } catch {}
@@ -31,6 +31,17 @@ export default function WelcomeShowcasePage() {
           const { data } = await supabase.auth.getSession();
           signedIn = !!data.session;
         } catch {}
+        // The free-trial button goes to checkout; signing in comes first for
+        // guests, since the card is linked to their account.
+        if (target === "trial") {
+          navigate(
+            signedIn
+              ? "/pricing?offer=free_trial"
+              : "/auth?redirect=%2Fpricing%3Foffer%3Dfree_trial",
+            { replace: true },
+          );
+          return;
+        }
         navigate(signedIn ? "/chat" : "/auth", { replace: true });
       }}
     />
