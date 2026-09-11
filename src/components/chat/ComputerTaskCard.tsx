@@ -58,14 +58,27 @@ export default function ComputerTaskCard({ taskId }: Props) {
         setLoaded(true);
         setEvents(res.events ?? []);
         const finished = res.task.status === "done" || res.task.status === "failed";
-        if (finished) clearActiveComputerRun(taskId);
-        else {
+        // A task the provider stopped reporting on (page closed, provider drop)
+        // must never keep the composer locked: after 10 quiet minutes it is
+        // treated as abandoned so the user can send again immediately.
+        const last = Date.parse(res.task.updated_at || res.task.created_at || "") || 0;
+        const stale = last > 0 && Date.now() - last > 10 * 60 * 1000;
+        if (finished || stale) {
+          clearActiveComputerRun(taskId);
+          if (stale && !finished) {
+            setTimedOut(true);
+            await stopComputerTask(taskId).catch(() => undefined);
+          }
+        } else {
           setActiveComputerRun(taskId);
           timer.current = setTimeout(tick, POLL_MS);
         }
       } catch {
+        // Never leave the send button stuck as a stop button on a broken poll.
+        clearActiveComputerRun(taskId);
         if (!cancelled) timer.current = setTimeout(tick, POLL_MS * 2);
       }
+
     };
     void tick();
 
