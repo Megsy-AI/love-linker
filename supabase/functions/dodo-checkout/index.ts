@@ -26,8 +26,8 @@ function json(body: unknown, status = 200) {
 const PLANS: Record<string, { plan: string; amount: number; credits: number }> = {
   monthly: { plan: "pro", amount: 20, credits: 1000 },
   monthly_intro: { plan: "pro", amount: 7, credits: 1000 },
-  // Card-linked 3-day free trial, then the $7 monthly plan charges automatically.
-  monthly_trial: { plan: "pro", amount: 7, credits: 1000 },
+  // 3-day trial for $1, then the $7 monthly plan charges automatically.
+  monthly_trial: { plan: "pro", amount: 1, credits: 1000 },
   monthly_winback: { plan: "pro", amount: 5, credits: 1000 },
   yearly: { plan: "pro", amount: 160, credits: 12000 },
   yearly_winback: { plan: "pro", amount: 149, credits: 12000 },

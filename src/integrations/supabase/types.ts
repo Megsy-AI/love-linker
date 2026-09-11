@@ -7062,6 +7062,7 @@ export type Database = {
           id: string
           image_free_uses: number
           plan: string
+          trial_ends_at: string | null
           two_factor_enabled: boolean
           updated_at: string
         }
@@ -7077,6 +7078,7 @@ export type Database = {
           id: string
           image_free_uses?: number
           plan?: string
+          trial_ends_at?: string | null
           two_factor_enabled?: boolean
           updated_at?: string
         }
@@ -7092,6 +7094,7 @@ export type Database = {
           id?: string
           image_free_uses?: number
           plan?: string
+          trial_ends_at?: string | null
           two_factor_enabled?: boolean
           updated_at?: string
         }

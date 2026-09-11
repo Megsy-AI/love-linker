@@ -343,7 +343,11 @@ const PricingPage = () => {
           "pro:monthly": "plan_pro_m_first",
           "elite:monthly": "plan_elite_m",
         };
-        const sku = skuMap[`${tier}:${interval}`];
+        // The 3-day trial has its own local SKU (~$1 in EGP).
+        const sku =
+          trial && tier === "pro" && interval === "monthly"
+            ? "plan_pro_m_trial"
+            : skuMap[`${tier}:${interval}`];
         if (!sku) {
           throw new Error("This plan isn't available for local payment yet.");
         }
@@ -369,11 +373,12 @@ const PricingPage = () => {
           tier,
           interval,
           trial,
-          // A trial checkout is the card-linked 3-day free trial.
+          // A trial checkout is the $1 / 3-day offer.
           free_trial: trial,
           provider,
-          // Dodo product to open (server may override from its own catalog).
-          product_id: dodoProductId(interval, hasAbandonedCheckout()),
+          // Dodo product to open. The trial has its own product in Dodo, so the
+          // server picks it instead of the standard monthly product.
+          ...(trial ? {} : { product_id: dodoProductId(interval, hasAbandonedCheckout()) }),
         },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });

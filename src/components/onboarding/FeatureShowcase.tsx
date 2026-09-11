@@ -181,7 +181,7 @@ export default function FeatureShowcase({
           onClick={continueFlow}
           className="h-14 w-full rounded-md bg-[hsl(var(--welcome-ink))] text-base font-bold !text-[hsl(var(--welcome-paper))] shadow-none hover:bg-[hsl(var(--welcome-ink)/.9)]"
         >
-          {isTrial ? "Start 3 days free" : "Continue"}
+          {isTrial ? "Start 3 days for $1" : "Continue"}
           {!isTrial && <ArrowRight className="size-5" />}
         </Button>
 
@@ -280,11 +280,12 @@ function TrialScreen() {
 
       <div className="relative z-10 px-7 pt-5 text-left">
         <h2 className="max-w-[330px] text-[38px] font-extrabold leading-[1.03] text-[hsl(var(--welcome-ink))] sm:text-[42px]">
-          3 days free.
+          3 days for $1.
         </h2>
         <p className="mt-4 max-w-[330px] text-[16px] font-medium leading-6 text-[hsl(var(--welcome-muted))]">
-          Try Megsy Pro free for 3 days — unlimited premium images and the strongest models.
-          After the trial it continues at $7 for the first month, and you can cancel anytime.
+          Try Megsy Pro for 3 days for just $1 — includes 3 premium images every day
+          plus the strongest models. After the trial it continues at $7 for the first month,
+          and you can cancel anytime. Premium images become unlimited on the full subscription.
         </p>
       </div>
     </div>
