@@ -275,8 +275,8 @@ async function deapiGenerate(opts: {
         width,
         height,
         seed,
-        steps: opts.steps,
-        guidance: 3.5,
+        // Hosted models (gpt-image-2 / nano-banana-2) take no diffusion params.
+        ...(opts.steps > 0 ? { steps: opts.steps, guidance: 3.5 } : {}),
       }),
     }));
   }
