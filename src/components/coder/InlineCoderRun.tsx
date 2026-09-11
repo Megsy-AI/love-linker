@@ -690,7 +690,7 @@ export default function InlineCoderRun({
         tool="code"
         status={status === "running" ? runningLabel : undefined}
         steps={steps}
-        text={notes}
+        text={traceText}
       />
 
       {prose && <ChatMessage role="assistant" content={prose} />}
