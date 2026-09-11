@@ -117,7 +117,18 @@ Deno.serve(async (req) => {
       });
     }
     if (plan) {
-      await admin.from("profiles").update({ plan }).eq("id", userId);
+      // A trial order unlocks the plan for 3 days (3 premium images/day) and
+      // the subscription then bills automatically.
+      const trialDays = Number(meta.trial_days ?? 0);
+      await admin
+        .from("profiles")
+        .update({
+          plan,
+          ...(trialDays > 0
+            ? { trial_ends_at: new Date(Date.now() + trialDays * 86_400_000).toISOString() }
+            : { trial_ends_at: null }),
+        })
+        .eq("id", userId);
       const row = {
         plan,
         status: "active",
