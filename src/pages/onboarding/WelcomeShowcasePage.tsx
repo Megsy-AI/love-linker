@@ -36,8 +36,8 @@ export default function WelcomeShowcasePage() {
         if (target === "trial") {
           navigate(
             signedIn
-              ? "/billing?offer=free_trial"
-              : "/auth?next=%2Fbilling%3Foffer%3Dfree_trial",
+              ? "/pricing?offer=free_trial"
+              : "/auth?redirect=%2Fpricing%3Foffer%3Dfree_trial",
             { replace: true },
           );
           return;
