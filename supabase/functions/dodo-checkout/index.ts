@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
   if (insertErr) return json({ error: insertErr.message }, 500);
 
-  const body = {
+  const body: Record<string, unknown> = {
     payment_link: true,
     return_url: `${siteUrl}/billing/success?provider=dodo&order=${orderId}`,
     customer: { email: user.email ?? "", name: user.user_metadata?.full_name ?? user.email ?? "" },
@@ -147,18 +147,36 @@ Deno.serve(async (req) => {
       street: String(payload.street ?? "NA"),
       zipcode: String(payload.zipcode ?? "00000"),
     },
-    metadata: { order_id: orderId, user_id: user.id, sku, credits: String(info.credits), plan: info.plan },
+    metadata: {
+      order_id: orderId,
+      user_id: user.id,
+      sku,
+      credits: String(info.credits),
+      plan: info.plan,
+      trial_days: String(trialDays),
+    },
     ...(isSubscription
       ? { product_id: productId, quantity: 1 }
       : { product_cart: [{ product_id: productId, quantity: 1 }] }),
+    ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
   };
 
-  const res = await fetch(`${API_BASE}/${isSubscription ? "subscriptions" : "payments"}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
+  const call = (payloadBody: Record<string, unknown>) =>
+    fetch(`${API_BASE}/${isSubscription ? "subscriptions" : "payments"}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payloadBody),
+    });
+
+  let res = await call(body);
+  let data = await res.json().catch(() => ({}));
+  // Some Dodo products carry the trial on the product itself and reject the
+  // per-subscription field — retry once without it so checkout still opens.
+  if (!res.ok && trialDays > 0) {
+    const { trial_period_days: _omit, ...withoutTrial } = body;
+    res = await call(withoutTrial);
+    data = await res.json().catch(() => ({}));
+  }
   if (!res.ok) {
     await admin.from("dodo_orders").update({ status: "failed", raw: data }).eq("order_id", orderId);
     return json({ error: `Dodo error ${res.status}`, details: data }, 502);
