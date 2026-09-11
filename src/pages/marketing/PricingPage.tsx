@@ -401,6 +401,18 @@ const PricingPage = () => {
     }
   };
 
+  // Arriving from the onboarding "3 days free" button opens trial checkout once.
+  const trialAutoStarted = useRef(false);
+  useEffect(() => {
+    if (trialAutoStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("offer") !== "free_trial") return;
+    trialAutoStarted.current = true;
+    void handleSubscribe("pro", { trial: true, interval: "monthly" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const scrollTo = (id: string) => {
     if (id.startsWith("#")) {
       document.querySelector(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
