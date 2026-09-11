@@ -1,36 +1,24 @@
 import { lazy, ComponentType } from "react";
-
-// Wraps React.lazy with automatic recovery from stale chunk errors after a new
-// deploy. On a dynamic-import failure we retry the import a few times
-// (transient network blip, slow chunk, new asset manifest). We NEVER reload the
-// page automatically — the app must never refresh itself under the user; the
-// error boundary shows a manual retry instead.
-function sleep(ms: number) {
-  return new Promise<void>((r) => setTimeout(r, ms));
-}
+import { recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ): ReturnType<typeof lazy<T>> {
-  return lazy(async () => {
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        return await factory();
-      } catch (err) {
-        lastErr = err;
-        const msg = String((err as any)?.message || err || "");
-        const isChunkError =
-          /Loading chunk|Loading CSS chunk|Failed to fetch dynamically imported module|Importing a module script failed|dynamically imported module/i.test(
-            msg,
-          );
-        if (!isChunkError) throw err;
-        if (attempt < 4) {
-          await sleep(300 * (attempt + 1));
-          continue;
-        }
-      }
-    }
-    throw lastErr;
+  return lazy(() => {
+    const timeout = new Promise<never>((_, reject) => {
+      window.setTimeout(() => {
+        const error = new Error("ChunkLoadError: screen module timed out");
+        error.name = "ChunkLoadError";
+        reject(error);
+      }, 12_000);
+    });
+
+    return Promise.race([factory(), timeout]).catch((error) => {
+    // Browsers memoize failed module imports. Re-requesting the same URL only
+    // delays the inevitable; one guarded reload obtains the current HTML and
+    // its matching hashed chunks after a deployment.
+      recoverFromChunkLoadError(error);
+      throw error;
+    });
   });
 }

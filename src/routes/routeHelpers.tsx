@@ -38,11 +38,12 @@ export const LegacyAiRedirect = () => {
 };
 
 
-/**
- * Route-level loading state. Renders nothing: while a page chunk loads the
- * previous screen stays painted, so no skeleton/placeholder ever flashes.
- */
-export const LazyFallback = () => null;
+/** A real fallback prevents slow route chunks from looking like a white crash. */
+export const LazyFallback = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-background text-foreground">
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" aria-label="Loading" />
+  </div>
+);
 
 
 

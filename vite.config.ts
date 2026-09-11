@@ -8,7 +8,6 @@ import { createHmac } from "crypto";
 import { visualizer } from "rollup-plugin-visualizer";
 import { compression, defineAlgorithm } from "vite-plugin-compression2";
 import { constants as zlibConstants } from "zlib";
-import { VitePWA } from "vite-plugin-pwa";
 import { devServerBridgePlugin } from "@lovable.dev/vite-plugin-dev-server-bridge";
 
 /**
@@ -756,21 +755,10 @@ export default defineConfig({
     buildIdPlugin(),
     devServerBridgePlugin(),
 
-    // React Compiler is a Babel pass over every component. On Vercel Hobby it
-    // pushes the build close to the 3-minute timeout, so keep it everywhere
-    // except the production build step.
-    react({
-      babel: process.env.VERCEL
-        ? undefined
-        : {
-            plugins: [
-              // React Compiler — auto-memoizes every component and hook across
-              // the site. Eliminates unnecessary re-renders without hand-written
-              // React.memo / useMemo / useCallback everywhere. Runs at build time.
-              ["babel-plugin-react-compiler", { target: "19" }],
-            ],
-          },
-    }),
+    // Keep development and production on the same stable React transform.
+    // The release-candidate compiler previously changed hook scheduling only
+    // in preview, producing failures that could not be reproduced in builds.
+    react(),
     integrationAppTokenDevPlugin(),
     anythingApiDevPlugin(),
     manusAdminDevPlugin(),
@@ -787,125 +775,6 @@ export default defineConfig({
 
 
     transcribeDevPlugin(),
-    VitePWA({
-      // "prompt" (not autoUpdate): the service worker must never take control
-      // mid-session and reload the page under the user. Updates are applied on
-      // the next natural visit, or when the user taps our manual toast.
-      registerType: "prompt",
-      injectRegister: null,
-      strategies: "generateSW",
-      filename: "sw.js",
-      devOptions: { enabled: false },
-      includeAssets: [
-        "offline.html",
-        "robots.txt",
-      ],
-      manifestFilename: "site.webmanifest",
-      manifest: false,
-      workbox: {
-        // Precache ONLY the app shell (entry JS + CSS + HTML + tiny icons/fonts).
-        // Everything else — code-split route chunks, syntax highlighting
-        // grammars, mermaid diagram types, images — is cached at runtime via
-        // CacheFirst on first request. This keeps first-install download
-        // under ~1MB instead of ~44MB and dramatically speeds up SW install.
-        globPatterns: [
-          "index.html",
-          "offline.html",
-          "site.webmanifest",
-          "assets/index-*.{js,css}",
-          "assets/react-vendor-*.js",
-          "*.{ico,webmanifest}",
-        ],
-        globIgnores: [
-          "**/megsy-push-sw.js",
-          "**/service-worker.js",
-        ],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [
-          /^\/~oauth/,
-          /^\/api\//,
-          /^\/auth\//,
-          /^https:\/\/[^/]+\.supabase\.co\//,
-          /^https:\/\/[^/]+\.supabase\.in\//,
-        ],
-        cleanupOutdatedCaches: true,
-        clientsClaim: false,
-        skipWaiting: false,
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.mode === "navigate",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "html-nav",
-              networkTimeoutSeconds: 4,
-              expiration: { maxEntries: 40, maxAgeSeconds: 24 * 60 * 60 },
-              // If both the network and the precache miss (e.g. index.html
-              // hasn't been cached yet on a brand-new offline install), fall
-              // back to the static offline page instead of a broken request.
-              plugins: [
-                {
-                  handlerDidError: async () => caches.match("/offline.html"),
-                },
-              ],
-            },
-          },
-          {
-            // Hashed, immutable build output — safe to cache aggressively.
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/assets/"),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "build-assets",
-              expiration: { maxEntries: 200, maxAgeSeconds: 365 * 24 * 60 * 60 },
-            },
-          },
-          {
-            // Images: first request downloads, every later one is served from
-            // the local cache without touching the network.
-            urlPattern: ({ url }) =>
-              /\.(?:png|jpe?g|webp|avif|svg|gif|ico)$/i.test(url.pathname),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "img-assets",
-              expiration: { maxEntries: 400, maxAgeSeconds: 90 * 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Static JSON data (i18n dictionaries, template registries, etc.).
-            urlPattern: ({ url, sameOrigin }) =>
-              sameOrigin && /\.json$/i.test(url.pathname) && !url.pathname.includes("manifest"),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "static-json",
-              expiration: { maxEntries: 120, maxAgeSeconds: 30 * 24 * 60 * 60 },
-            },
-          },
-          {
-            // Cross-origin fonts + stylesheets (Google Fonts) and CDN assets.
-            urlPattern: ({ url, sameOrigin }) =>
-              !sameOrigin &&
-              (/fonts\.(?:googleapis|gstatic)\.com$/.test(url.hostname) ||
-                url.pathname.startsWith("/__l5e/assets-v1/")),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "external-assets",
-              expiration: { maxEntries: 120, maxAgeSeconds: 365 * 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: ({ url, sameOrigin }) =>
-              sameOrigin && /\.(?:woff2?|ttf|otf)$/i.test(url.pathname),
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "fonts",
-              expiration: { maxEntries: 30, maxAgeSeconds: 365 * 24 * 60 * 60 },
-            },
-          },
-        ],
-      },
-    }),
     // Vercel compresses responses at the edge. Generating thousands of
     // maximum-quality Brotli/Gzip files during its build can exceed its time
     // limit, so retain pre-compression only for other static hosts.

@@ -7,9 +7,6 @@ import { LazyMotion } from "framer-motion";
 // and chat (see ChatPage, MobilePushShell, MobileBottomSheet, AppSidebar).
 // Downgrading to `domAnimation` disables those features silently.
 const loadMotionFeatures = () => import("framer-motion").then((m) => m.domMax);
-// Start fetching the chat chunk in parallel with app boot. `/`, `/index` and
-// `/chat` all render ChatPage, so by the time the router mounts the chunk is
-// usually already in memory — no route-level loading state is ever painted.
 // First visit ever → show the onboarding showcase instead of the chat.
 // Runs before the router mounts so no chat frame is ever painted first.
 const __hasSession = () => {
@@ -44,8 +41,6 @@ const __firstVisitWelcome = (() => {
   }
 })();
 
-if (!__firstVisitWelcome) void import("@/pages/chat/ChatPage");
-else void import("@/pages/onboarding/WelcomeShowcasePage");
 import App from "./App.tsx";
 import { installTapReliability } from "@/lib/tapReliability";
 import ClerkGate from "@/components/auth/ClerkGate";
@@ -85,6 +80,7 @@ import { toast as sonnerToast } from "sonner";
 import { patchSupabaseAuth } from "@/integrations/supabase/patchAuth";
 import { installGlobalLinkPrefetch } from "@/lib/globalLinkPrefetch";
 import { registerAppServiceWorker } from "@/lib/registerSW";
+import { recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import { installSnapshotCapture } from "@/lib/pageSnapshot";
 import { initUserLang } from "@/lib/authI18n";
 import { tryAutoLoginTelegram, isInsideTelegram, initTelegramWebApp } from "@/lib/telegramAuth";
@@ -144,6 +140,10 @@ if (typeof window !== "undefined" && isInsideTelegram()) {
 })();
 
 patchSupabaseAuth();
+// Run immediately: preview hosts must unregister an old production worker
+// before any route chunk is requested. Registration itself remains deferred
+// internally on supported production hosts.
+registerAppServiceWorker();
 
 // Defer non-critical global init to after first paint so it never blocks
 // the initial React mount / hydration on slow devices.
@@ -154,7 +154,6 @@ const runIdle = (fn: () => void) => {
 };
 runIdle(() => {
   try { installGlobalLinkPrefetch(); } catch {}
-  try { registerAppServiceWorker(); } catch {}
   try { installSnapshotCapture(); } catch {}
 });
 
@@ -208,31 +207,9 @@ const __reportThrottled = (err: unknown, source: string) => {
   void reportError(err, { source });
 };
 
-// AUTOMATIC PAGE RELOADS ARE DISABLED APP-WIDE.
-// Chunk/module-load failures are recovered by `lazyWithRetry` (re-import with
-// backoff). If they still fail we surface a manual "Reload" toast — the app
-// must never refresh itself under the user (especially not while chatting).
-const __TRANSIENT_RE =
-  /(Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed|ChunkLoadError|Loading CSS chunk)/i;
 const __IGNORED_BROWSER_NOISE_RE = /ResizeObserver loop completed with undelivered notifications/i;
-let __transientNoticeAt = 0;
 const __maybeReload = (err: unknown) => {
-  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "");
-  if (!__TRANSIENT_RE.test(msg)) return false;
-  const now = Date.now();
-  if (now - __transientNoticeAt > 60_000) {
-    __transientNoticeAt = now;
-    void import("sonner")
-      .then(({ toast }) => {
-        toast("A new version is available", {
-          description: "Reload when you're ready — nothing is refreshed automatically.",
-          duration: 12_000,
-          action: { label: "Reload", onClick: () => window.location.reload() },
-        });
-      })
-      .catch(() => {});
-  }
-  return true;
+  return recoverFromChunkLoadError(err);
 };
 
 window.addEventListener("error", (e) => {
