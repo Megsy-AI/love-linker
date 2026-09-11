@@ -65,27 +65,17 @@ export default function FeatureShowcase({ onFinish }: { onFinish?: () => void })
     });
   }, []);
 
-  // Slide 2 pre-warms the sign-up screen: its code chunk, hero video and poster.
+  // Slide 2 pre-warms the sign-up screen: its code chunk and poster image only.
+  // The hero video (6 MB) is deliberately NOT pre-fetched here: it is a desktop-
+  // only decoration, and downloading it during onboarding stole all bandwidth
+  // from the app itself, which is what made the first open feel slow on phones.
   useEffect(() => {
     if (index !== 1) return;
     void import("@/pages/auth/AuthPage").catch(() => {});
     const poster = new Image();
     poster.src = AUTH_HERO_POSTER;
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    video.src = AUTH_HERO_WEBM;
-    video.load();
-    const mp4 = document.createElement("video");
-    mp4.preload = "auto";
-    mp4.muted = true;
-    mp4.src = AUTH_HERO_MP4;
-    mp4.load();
-    return () => {
-      video.removeAttribute("src");
-      mp4.removeAttribute("src");
-    };
   }, [index]);
+
 
   // Horizontal scroll (trackpad / mouse wheel) moves between slides.
   useEffect(() => {
