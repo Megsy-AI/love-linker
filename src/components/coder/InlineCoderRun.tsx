@@ -10,6 +10,8 @@ import ChatMessage from "@/components/chat/ChatMessage";
 import { publishProject, withRuntimeShim } from "@/lib/publishProject";
 import { buildReactRuntimeHtml, isReactProject } from "@/lib/buildReactRuntime";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   extractProjectFiles,
   ensureProjectScaffold,
@@ -303,7 +305,20 @@ export default function InlineCoderRun({
       final.map(({ path, content }) => ({ path, content })),
       summary,
     );
+
+    // Silent, internal-only backup of the produced project. Never surfaced in
+    // the UI and never allowed to affect the run's outcome.
+    void supabase.functions
+      .invoke("coder-store", {
+        body: {
+          run_id: runId,
+          message: prompt.slice(0, 80),
+          files: final.map(({ path, content }) => ({ path, content })),
+        },
+      })
+      .catch(() => undefined);
   };
+
 
   /** Regenerate a single asset and re-inject it across the project. */
   const regenerateAsset = async (id: string) => {
@@ -647,15 +662,26 @@ export default function InlineCoderRun({
   // ── Chat-native rendering ────────────────────────────────────────────────
   // A build reads like a normal turn: a short message, the same thinking trace
   // used everywhere else, then a preview card and a files card.
-  const prose = useMemo(() => {
-    const raw = notes
+  // Code never reaches the chat surface: fenced blocks, patch blocks and any
+  // line that reads like source are stripped from both the message and the
+  // thinking trace, so the user only ever sees plain explanation + cards.
+  const stripCode = (input: string) =>
+    input
       .replace(/```[\s\S]*?```/g, "")
-      .replace(/^\s*[-*]\s+\[( |x|X)\]\s+.*$/gm, "")
+      .replace(/```[\s\S]*$/g, "")
       .replace(/<{5,}[\s\S]*?>{5,}/g, "")
+      .replace(/^\s*[-*]\s+\[( |x|X)\]\s+.*$/gm, "")
+      .replace(
+        /^\s*(import |export |const |let |var |function |class |return |<\/?[a-zA-Z][^>]*>|\}|\{|#include|def |@|\.[a-zA-Z-]+\s*\{|[a-zA-Z-]+:\s*[^ ]+;).*$/gm,
+        "",
+      )
+      .replace(/`([^`]*)`/g, "$1")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    return raw.slice(0, 1200);
-  }, [notes]);
+
+  const prose = useMemo(() => stripCode(notes).slice(0, 1200), [notes]);
+  const traceText = useMemo(() => stripCode(notes), [notes]);
+
 
   const previewHtml = useMemo(() => {
     if (status !== "done" || projectFiles.length === 0) return "";
@@ -679,7 +705,7 @@ export default function InlineCoderRun({
         tool="code"
         status={status === "running" ? runningLabel : undefined}
         steps={steps}
-        text={notes}
+        text={traceText}
       />
 
       {prose && <ChatMessage role="assistant" content={prose} />}

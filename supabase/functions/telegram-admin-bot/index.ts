@@ -36,7 +36,9 @@ const PROVIDERS: Record<string, string> = {
   deapi: "DeAPI (صور/فيديو)",
   renderful: "Renderful (صور)",
   "browser-use": "Browser Use (الوكيل)",
+  github: "GitHub (تخزين المشاريع)",
 };
+
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
