@@ -70,4 +70,5 @@
 - [x] Kashier: trial SKU maps to the EGP intro price (no native trial support)
 - [x] 3 premium images/day free, unlimited for subscribers (enforced in Postgres)
 - [x] DeAPI gpt-image-2 / nano-banana-2 wired + cross-provider rescue chain
-- [ ] Dodo dashboard: confirm the $7 product's trial setting matches 3 days
+- [ ] Dodo dashboard: create the $1 / 3-day trial product, then add it to dodo_products with interval `monthly_trial`
+- [x] Trial = $1 for 3 days (49 EGP via Kashier); 3 premium images/day during the trial, unlimited after
