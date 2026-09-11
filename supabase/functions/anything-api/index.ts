@@ -1285,30 +1285,73 @@ Deno.serve(async (req) => {
     }
 
     // ----- provider call (refund on failure) -----
-    try {
-      let imageUrl: string;
-      if (provider === "renderful") {
+    // One attempt = one (provider, model) pair. The requested pair runs first,
+    // then the rescue chain, so a dead provider key or a busy GPU pool never
+    // reaches the user as an error.
+    const runOne = async (
+      attemptSlug: string,
+    ): Promise<{ url: string; provider: string; slug: string; apiModel: string }> => {
+      const attemptProvider = attemptSlug.startsWith("renderful-") ? "renderful" : "deapi";
+      const attemptApiModel = attemptSlug === slug
+        ? apiModel
+        : attemptProvider === "deapi"
+          ? (DEAPI_MODELS[attemptSlug]?.api ?? "Flux1schnell")
+          : attemptSlug.replace(/^renderful-/, "");
+      if (attemptProvider === "renderful") {
         const key = await resolveApiKey(admin, "renderful");
         if (!key) throw new Error("Renderful API key is not configured");
-        imageUrl = await renderfulGenerate({ key, model: apiModel, prompt, images, aspectRatio });
-      } else {
-        const key = await resolveApiKey(admin, "deapi");
-        if (!key) throw new Error("deapi API key is not configured");
-        imageUrl = await deapiGenerate({
+        const url = await renderfulGenerate({
           key,
-          model: apiModel,
+          model: attemptApiModel,
           prompt,
           images,
           aspectRatio,
-          steps: DEAPI_MODELS[slug]?.steps ?? 4,
         });
+        return { url, provider: attemptProvider, slug: attemptSlug, apiModel: attemptApiModel };
       }
+      const key = await resolveApiKey(admin, "deapi");
+      if (!key) throw new Error("deapi API key is not configured");
+      const url = await deapiGenerate({
+        key,
+        model: attemptApiModel,
+        prompt,
+        images,
+        aspectRatio,
+        steps: DEAPI_MODELS[attemptSlug]?.steps ?? 4,
+      });
+      return { url, provider: attemptProvider, slug: attemptSlug, apiModel: attemptApiModel };
+    };
+
+    const attempts = [slug, ...(IMAGE_FALLBACK_CHAIN[slug] ?? ["deapi-flux-schnell"])]
+      .filter((s, i, arr) => arr.indexOf(s) === i)
+      // An editing request can only run on models that accept a reference image.
+      .filter((s) => {
+        if (images.length === 0) return s.startsWith("renderful-") || DEAPI_MODELS[s]?.t2i !== false;
+        return s.startsWith("renderful-")
+          ? !!RENDERFUL_I2I[s.replace(/^renderful-/, "")]
+          : !!DEAPI_MODELS[s]?.edit;
+      });
+
+    try {
+      let done: { url: string; provider: string; slug: string; apiModel: string } | null = null;
+      let lastErr: unknown = null;
+      for (const attemptSlug of attempts) {
+        try {
+          done = await runOne(attemptSlug);
+          break;
+        } catch (err) {
+          lastErr = err;
+          console.error(`image attempt failed (${attemptSlug}):`, err);
+        }
+      }
+      if (!done) throw lastErr ?? new Error("image generation failed");
       return json({
-        image_url: imageUrl,
-        image_urls: [imageUrl],
-        provider,
-        model_slug: slug,
-        model_name: model?.display_name ?? apiModel,
+        image_url: done.url,
+        image_urls: [done.url],
+        provider: done.provider,
+        model_slug: done.slug,
+        model_name: done.slug === slug ? (model?.display_name ?? done.apiModel) : done.apiModel,
+        fell_back: done.slug !== slug,
       });
     } catch (e) {
       if (credits > 0 && userId) {
