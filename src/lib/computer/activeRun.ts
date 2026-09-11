@@ -7,11 +7,23 @@ export const PENDING_COMPUTER_RUN = "__pending__";
 
 let current: string | null = null;
 const listeners = new Set<(v: string | null) => void>();
+let watchdog: ReturnType<typeof setTimeout> | null = null;
 
 export function setActiveComputerRun(id: string | null) {
   if (current === id) return;
   current = id;
   listeners.forEach((l) => l(current));
+  // Safety net: the composer must never stay locked on a stop button. A run
+  // that never reports back is released automatically (2 minutes while it is
+  // still starting, 15 minutes once it has a real id).
+  if (watchdog) clearTimeout(watchdog);
+  watchdog = null;
+  if (id) {
+    const ttl = id === PENDING_COMPUTER_RUN ? 120_000 : 15 * 60_000;
+    watchdog = setTimeout(() => {
+      if (current === id) setActiveComputerRun(null);
+    }, ttl);
+  }
 }
 
 /** The run currently occupying the composer, if any. */
