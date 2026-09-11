@@ -153,6 +153,7 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-muted-foreground">{detail}</p>
             <button
               onClick={() => {
+                this.silentRetries = 0;
                 this.setState({ hasError: false, error: undefined });
               }}
               className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
