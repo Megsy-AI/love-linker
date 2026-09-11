@@ -101,7 +101,7 @@ class ErrorBoundary extends Component<Props, State> {
     // render. We never reload the page automatically — the user decides when
     // to refresh (via the "Try again" button below).
     if (isTransient(error)) {
-      this.setState({ hasError: false, error: undefined });
+      if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
       return;
     }
 
