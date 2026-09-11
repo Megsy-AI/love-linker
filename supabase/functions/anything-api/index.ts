@@ -63,6 +63,25 @@ const DEAPI_MODELS: Record<string, { api: string; edit: boolean; t2i: boolean; s
   "deapi-flux-schnell": { api: "Flux1schnell", edit: false, t2i: true, steps: 4 },
   "deapi-flux-2-klein": { api: "Flux_2_Klein_4B_BF16", edit: true, t2i: true, steps: 4 },
   "deapi-qwen-image-edit": { api: "QwenImageEdit_Plus_NF4", edit: true, t2i: false, steps: 10 },
+  // Hosted premium models added to the deapi catalogue (steps 0 => omit
+  // steps/guidance, those models reject the diffusion-only fields).
+  "deapi-gpt-image-2": { api: "gpt-image-2", edit: true, t2i: true, steps: 0 },
+  "deapi-nano-banana-2": { api: "nano-banana-2", edit: true, t2i: true, steps: 0 },
+};
+
+/**
+ * Cross-provider rescue chain: when the requested model's provider fails
+ * (no credit, 5xx, unknown model) we silently retry the same prompt on an
+ * equivalent model from another provider so the user never sees a failure.
+ */
+const IMAGE_FALLBACK_CHAIN: Record<string, string[]> = {
+  "renderful-gpt-image-2": ["deapi-gpt-image-2", "deapi-flux-2-klein", "deapi-flux-schnell"],
+  "renderful-nano-banana-2": ["deapi-nano-banana-2", "deapi-flux-2-klein", "deapi-flux-schnell"],
+  "renderful-seedream-4-5": ["deapi-nano-banana-2", "deapi-flux-schnell"],
+  "renderful-grok-imagine-image": ["deapi-gpt-image-2", "deapi-flux-schnell"],
+  "deapi-gpt-image-2": ["renderful-gpt-image-2", "deapi-flux-2-klein", "deapi-flux-schnell"],
+  "deapi-nano-banana-2": ["renderful-nano-banana-2", "deapi-flux-2-klein", "deapi-flux-schnell"],
+  "deapi-flux-2-klein": ["deapi-flux-schnell"],
 };
 
 // ---- video ----
