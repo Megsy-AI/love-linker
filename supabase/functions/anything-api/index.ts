@@ -1270,17 +1270,24 @@ Deno.serve(async (req) => {
         return json({
           error: true,
           paywall: true,
-          message: "سجّل الدخول لاستخدام النماذج المتقدمة (3 صور يوميًا مجانًا).",
+          message: "سجّل الدخول أولًا لاستخدام النماذج المتقدمة.",
         });
       }
-      const { data: quota } = await admin.rpc("consume_premium_image", { p_user_id: userId });
+      const { data: quota, error: quotaErr } = await admin.rpc("consume_premium_image", {
+        p_user_id: userId,
+      });
+      if (quotaErr) {
+        return json({ error: true, message: "تعذّر التحقق من رصيد الصور المتقدمة، حاول تاني." });
+      }
       const q: any = quota ?? {};
       if (q.allowed === false) {
         return json({
           error: true,
           paywall: true,
           message:
-            "خلصت الـ3 صور المجانية بتاعة اليوم من النماذج المتقدمة. اشترك في Megsy Pro لتوليد غير محدود.",
+            q.reason === "daily_limit"
+              ? "خلصت الـ3 صور المتقدمة بتاعة اليوم. كمّل اشتراك Megsy Pro وتوليد الصور يبقى غير محدود."
+              : "النماذج المتقدمة متاحة مع عرض التجربة ($1 لمدة 3 أيام) — 3 صور متقدمة كل يوم، وغير محدودة بعد الاشتراك.",
         });
       }
       // The daily allowance covers the cost, so no credits are charged.
