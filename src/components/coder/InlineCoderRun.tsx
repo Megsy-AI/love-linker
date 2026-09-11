@@ -647,15 +647,26 @@ export default function InlineCoderRun({
   // ── Chat-native rendering ────────────────────────────────────────────────
   // A build reads like a normal turn: a short message, the same thinking trace
   // used everywhere else, then a preview card and a files card.
-  const prose = useMemo(() => {
-    const raw = notes
+  // Code never reaches the chat surface: fenced blocks, patch blocks and any
+  // line that reads like source are stripped from both the message and the
+  // thinking trace, so the user only ever sees plain explanation + cards.
+  const stripCode = (input: string) =>
+    input
       .replace(/```[\s\S]*?```/g, "")
-      .replace(/^\s*[-*]\s+\[( |x|X)\]\s+.*$/gm, "")
+      .replace(/```[\s\S]*$/g, "")
       .replace(/<{5,}[\s\S]*?>{5,}/g, "")
+      .replace(/^\s*[-*]\s+\[( |x|X)\]\s+.*$/gm, "")
+      .replace(
+        /^\s*(import |export |const |let |var |function |class |return |<\/?[a-zA-Z][^>]*>|\}|\{|#include|def |@|\.[a-zA-Z-]+\s*\{|[a-zA-Z-]+:\s*[^ ]+;).*$/gm,
+        "",
+      )
+      .replace(/`([^`]*)`/g, "$1")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    return raw.slice(0, 1200);
-  }, [notes]);
+
+  const prose = useMemo(() => stripCode(notes).slice(0, 1200), [notes]);
+  const traceText = useMemo(() => stripCode(notes), [notes]);
+
 
   const previewHtml = useMemo(() => {
     if (status !== "done" || projectFiles.length === 0) return "";
