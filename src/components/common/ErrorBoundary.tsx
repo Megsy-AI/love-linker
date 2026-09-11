@@ -55,9 +55,31 @@ const RECOVERY_WINDOW_MS = 10_000;
 const RECOVERY_MAX = 3;
 
 class ErrorBoundary extends Component<Props, State> {
+  // Bounded, delayed silent retries. Resetting synchronously inside
+  // componentDidCatch re-renders the same failing child immediately, which for
+  // a permanently-failing chunk import turns into an infinite catch/reset loop
+  // (React error #185). We cap the attempts and always wait a tick.
+  private silentRetries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+  }
+
+  private scheduleSilentRetry(max: number) {
+    if (this.silentRetries >= max) return false;
+    this.silentRetries += 1;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(
+      () => this.setState({ hasError: false, error: undefined }),
+      400 * this.silentRetries,
+    );
+    return true;
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -79,7 +101,7 @@ class ErrorBoundary extends Component<Props, State> {
     // render. We never reload the page automatically — the user decides when
     // to refresh (via the "Try again" button below).
     if (isTransient(error)) {
-      this.setState({ hasError: false, error: undefined });
+      if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
       return;
     }
 
@@ -98,19 +120,16 @@ class ErrorBoundary extends Component<Props, State> {
         parsed.count += 1;
         parsed.at = now;
         sessionStorage.setItem(RECOVERY_FLAG, JSON.stringify(parsed));
-        if (parsed.count <= RECOVERY_MAX) {
-          this.setState({ hasError: false, error: undefined });
-          return;
-        }
+        if (parsed.count <= RECOVERY_MAX && this.scheduleSilentRetry(RECOVERY_MAX)) return;
       } catch {
-        this.setState({ hasError: false, error: undefined });
-        return;
+        if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
       }
     }
   }
 
   componentDidUpdate(prev: Props) {
     if (prev.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.silentRetries = 0;
       this.setState({ hasError: false, error: undefined });
     }
   }
@@ -134,6 +153,7 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-muted-foreground">{detail}</p>
             <button
               onClick={() => {
+                this.silentRetries = 0;
                 this.setState({ hasError: false, error: undefined });
               }}
               className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
