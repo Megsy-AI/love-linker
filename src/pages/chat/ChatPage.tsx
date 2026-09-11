@@ -136,6 +136,7 @@ import { playNotificationSound } from "./utils/notificationSound";
 import { getSeoMeta } from "./data/seoByMode";
 import { rowToMessage } from "./services/rowToMessage";
 import { loadConversationMembers } from "./services/loadConversationMembers";
+import { readLocalData, writeLocalData } from "@/lib/localData";
 // Heavy turn/resume services — dynamic-imported on demand. These only run
 // after the user sends a message or when resuming background jobs, so they
 // should never be in the initial /chat chunk. Total savings: ~2500 LOC.
@@ -1129,9 +1130,22 @@ const ChatPage = () => {
     setPendingQuestions([]);
     setNarrations([]);
     setClarifyQs(null);
-    setLoadingMessages(true);
-    setMessages([]);
     setSystemEvents([]);
+
+    // Instant open: paint the last known local copy of this conversation
+    // before any network call, then revalidate silently below. Display-only —
+    // permissions and billing always come from the server.
+    const cached = readLocalData<{ title?: string; messages: Message[] }>(`conv:${id}`);
+    if (cached?.messages?.length) {
+      setConversationTitle(cached.title || "Untitled");
+      setMessages(cached.messages);
+      setLoadingMessages(false);
+      setTimeout(() => scrollToBottom(), 50);
+    } else {
+      setLoadingMessages(true);
+      setMessages([]);
+    }
+
     const { data: conv } = await supabase
       .from("conversations")
       .select("title, is_shared, share_id, is_pinned, mode, user_id")
@@ -1183,12 +1197,16 @@ const ChatPage = () => {
             row.value === "up" ? true : row.value === "down" ? false : null;
         });
       }
-      setMessages(
-        msgs
-          .map((m: any) => rowToMessage(m, senderMap, (conv as any)?.mode, feedbackByMessageId))
-          .filter(Boolean) as Message[],
-      );
+      const fresh = msgs
+        .map((m: any) => rowToMessage(m, senderMap, (conv as any)?.mode, feedbackByMessageId))
+        .filter(Boolean) as Message[];
+      setMessages(fresh);
       setTimeout(() => scrollToBottom(), 150);
+      // Keep the local copy in sync so the next open is instant.
+      writeLocalData(`conv:${id}`, {
+        title: (conv as any)?.title || "Untitled",
+        messages: fresh.slice(-40),
+      });
 
       // Re-attach to any in-flight background jobs (docs / slides / chat).
       void resumeDocsJobs({ msgs, setMessages });
