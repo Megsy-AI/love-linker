@@ -26,15 +26,21 @@ function json(body: unknown, status = 200) {
 const PLANS: Record<string, { plan: string; amount: number; credits: number }> = {
   monthly: { plan: "pro", amount: 20, credits: 1000 },
   monthly_intro: { plan: "pro", amount: 7, credits: 1000 },
+  // Card-linked 3-day free trial, then the $7 monthly plan charges automatically.
+  monthly_trial: { plan: "pro", amount: 7, credits: 1000 },
   monthly_winback: { plan: "pro", amount: 5, credits: 1000 },
   yearly: { plan: "pro", amount: 160, credits: 12000 },
   yearly_winback: { plan: "pro", amount: 149, credits: 12000 },
 };
 
+/** Free-trial length (days) per catalogue key. */
+const TRIAL_DAYS: Record<string, number> = { monthly_trial: 3 };
+
 // Legacy SKUs still sent by older clients -> catalogue key.
 const SKU_TO_KEY: Record<string, string> = {
   plan_pro_m: "monthly",
   plan_pro_m_first: "monthly_intro",
+  plan_pro_m_trial: "monthly_trial",
   plan_pro_m_winback: "monthly_winback",
   plan_pro_y: "yearly",
   plan_pro_y_winback: "yearly_winback",
@@ -52,10 +58,12 @@ function resolveKey(p: Record<string, unknown>): string | null {
   const yearly = /year|annual|y$/.test(raw);
   const offer = String(p.offer ?? "").toLowerCase();
   const winback = p.winback === true || /winback|win_back|return/.test(offer);
+  const freeTrial = p.free_trial === true || /free_trial|trial3|3day|3-day/.test(offer);
   const intro = p.trial === true || p.intro === true || /intro|first|trial/.test(offer);
 
   if (yearly) return winback ? "yearly_winback" : "yearly";
   if (winback) return "monthly_winback";
+  if (freeTrial) return "monthly_trial";
   if (intro) return "monthly_intro";
   return "monthly";
 }
