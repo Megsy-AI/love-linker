@@ -61,7 +61,7 @@ function useIsLightTheme() {
 interface Props {
   isYearly: boolean;
   onToggleYearly: (yearly: boolean) => void;
-  onSubscribe: (tier: PlanTier) => void;
+  onSubscribe: (tier: PlanTier, opts?: { trial?: boolean }) => void;
   loadingTier?: PlanTier | null;
   onMenuClick?: () => void;
 }
@@ -210,8 +210,39 @@ export default function MobilePricingScreen({
         ctaFg: "#0a0a0a",
       };
 
+  // The $1 / 3-day trial is a separate choice alongside monthly & yearly.
+  const [trialSelected, setTrialSelected] = useState(false);
+
+  const trialCopy = isAr
+    ? {
+        label: "تجربة 3 أيام",
+        badge: "الأفضل للبداية",
+        unit: "/ 3 أيام",
+        fine: `1$ لمدة 3 أيام، وخلال التجربة 3 صور متقدمة يوميًا. بعدها ${`$${INTRO_PRICE}`} للشهر الأول ثم $${pro.monthlyPrice}/شهر مع صور بلا حدود. يمكنك الإلغاء في أي وقت.`,
+        cta: "ابدأ 3 أيام بـ 1$",
+      }
+    : {
+        label: "3-day trial",
+        badge: "Best way to start",
+        unit: "/ 3 days",
+        fine: `$1 for 3 days, with 3 premium images per day during the trial. Then $${INTRO_PRICE}.00 for your first month and $${pro.monthlyPrice}.00/month after, with unlimited images. Cancel anytime.`,
+        cta: "Start 3 days for $1",
+      };
+
   const options = [
     {
+      key: "trial",
+      trial: true,
+      yearly: false,
+      label: trialCopy.label,
+      badge: trialCopy.badge,
+      price: 1,
+      strike: INTRO_PRICE,
+      unit: trialCopy.unit,
+    },
+    {
+      key: "monthly",
+      trial: false,
       yearly: false,
       label: t.monthly,
       badge: t.introBadge,
@@ -220,6 +251,8 @@ export default function MobilePricingScreen({
       unit: t.perMonth,
     },
     {
+      key: "yearly",
+      trial: false,
       yearly: true,
       label: t.yearly,
       badge: t.yearlyBadge,
@@ -330,12 +363,17 @@ export default function MobilePricingScreen({
           style={{ animationDelay: "200ms" }}
         >
           {options.map((opt) => {
-            const selected = isYearly === opt.yearly;
+            const selected = opt.trial
+              ? trialSelected
+              : !trialSelected && isYearly === opt.yearly;
             return (
               <button
-                key={opt.label}
+                key={opt.key}
                 type="button"
-                onClick={() => onToggleYearly(opt.yearly)}
+                onClick={() => {
+                  setTrialSelected(opt.trial);
+                  if (!opt.trial) onToggleYearly(opt.yearly);
+                }}
                 className={`flex w-full items-center gap-3 rounded-[18px] px-4 text-start transition-all duration-200 ${
                   compact ? "py-2" : "py-2.5"
                 } ${isAr ? "flex-row-reverse" : ""}`}
@@ -400,11 +438,15 @@ export default function MobilePricingScreen({
             className={`text-center leading-[1.45] ${compact ? "mb-2 min-h-[26px] text-[10px]" : "mb-2.5 min-h-[30px] text-[10.5px]"}`}
             style={{ color: c.faint }}
           >
-            {t.fine}
+            {trialSelected && !alreadySubscribed ? trialCopy.fine : t.fine}
           </p>
           <button
             type="button"
-            onClick={() => (alreadySubscribed ? navigate("/settings/billing") : onSubscribe("pro"))}
+            onClick={() =>
+              alreadySubscribed
+                ? navigate("/settings/billing")
+                : onSubscribe("pro", { trial: trialSelected })
+            }
             disabled={isLoading}
             className={`flex w-full items-center justify-center rounded-[16px] px-6 font-semibold leading-none transition active:scale-[0.99] disabled:opacity-60 ${
               compact ? "h-[46px] text-[14px]" : "h-[50px] text-[15px]"
@@ -414,7 +456,7 @@ export default function MobilePricingScreen({
             {isLoading ? (
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
             ) : (
-              t.cta
+              trialSelected && !alreadySubscribed ? trialCopy.cta : t.cta
             )}
           </button>
           <nav

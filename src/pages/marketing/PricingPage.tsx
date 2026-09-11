@@ -452,8 +452,11 @@ const PricingPage = () => {
             isYearly={isYearly}
             onToggleYearly={setIsYearly}
             loadingTier={loadingTier}
-            onSubscribe={(tier) =>
-              handleSubscribe(tier, { interval: isYearly ? "yearly" : "monthly" })
+            onSubscribe={(tier, opts) =>
+              handleSubscribe(tier, {
+                interval: isYearly ? "yearly" : "monthly",
+                trial: opts?.trial === true,
+              })
             }
             onMenuClick={() => setMobileOpen(true)}
           />
@@ -981,6 +984,27 @@ const PricingPage = () => {
                                 ctaLabel
                               )}
                             </button>
+                          )}
+
+                          {p.tier === "pro" && !isCurrent && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleSubscribe("pro", { trial: true, interval: "monthly" })
+                                }
+                                disabled={loadingTier !== null}
+                                className="mt-3 w-full py-3 rounded-full border border-foreground/40 text-[11px] uppercase font-normal text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ letterSpacing: "0.18em" }}
+                              >
+                                Start 3 days for $1
+                              </button>
+                              <p className="text-[10px] text-foreground/75 mt-2 leading-relaxed">
+                                Trial: 3 premium images per day. After the trial it continues at $
+                                {INTRO_PRICE}/first month, then ${p.monthlyPrice}/month with
+                                unlimited images. Cancel anytime.
+                              </p>
+                            </>
                           )}
 
                           {(() => {
