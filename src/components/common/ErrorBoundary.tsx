@@ -55,9 +55,31 @@ const RECOVERY_WINDOW_MS = 10_000;
 const RECOVERY_MAX = 3;
 
 class ErrorBoundary extends Component<Props, State> {
+  // Bounded, delayed silent retries. Resetting synchronously inside
+  // componentDidCatch re-renders the same failing child immediately, which for
+  // a permanently-failing chunk import turns into an infinite catch/reset loop
+  // (React error #185). We cap the attempts and always wait a tick.
+  private silentRetries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+  }
+
+  private scheduleSilentRetry(max: number) {
+    if (this.silentRetries >= max) return false;
+    this.silentRetries += 1;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(
+      () => this.setState({ hasError: false, error: undefined }),
+      400 * this.silentRetries,
+    );
+    return true;
   }
 
   static getDerivedStateFromError(error: Error): State {
