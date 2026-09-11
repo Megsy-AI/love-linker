@@ -6977,6 +6977,27 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_image_usage: {
+        Row: {
+          day: string
+          updated_at: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          day?: string
+          updated_at?: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          updated_at?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       premium_usage: {
         Row: {
           id: string
@@ -11115,6 +11136,7 @@ export type Database = {
         }
         Returns: Json
       }
+      consume_premium_image: { Args: { p_user_id: string }; Returns: Json }
       consume_video_quota:
         | {
             Args: { _model?: string; _unlimited?: boolean; _user_id?: string }
@@ -11373,6 +11395,7 @@ export type Database = {
           id: string
         }[]
       }
+      premium_image_quota: { Args: { p_user_id: string }; Returns: Json }
       process_polar_order: {
         Args: {
           p_credits: number
