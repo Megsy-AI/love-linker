@@ -343,7 +343,11 @@ const PricingPage = () => {
           "pro:monthly": "plan_pro_m_first",
           "elite:monthly": "plan_elite_m",
         };
-        const sku = skuMap[`${tier}:${interval}`];
+        // The 3-day trial has its own local SKU (~$1 in EGP).
+        const sku =
+          trial && tier === "pro" && interval === "monthly"
+            ? "plan_pro_m_trial"
+            : skuMap[`${tier}:${interval}`];
         if (!sku) {
           throw new Error("This plan isn't available for local payment yet.");
         }
