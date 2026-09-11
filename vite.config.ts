@@ -8,7 +8,6 @@ import { createHmac } from "crypto";
 import { visualizer } from "rollup-plugin-visualizer";
 import { compression, defineAlgorithm } from "vite-plugin-compression2";
 import { constants as zlibConstants } from "zlib";
-import { VitePWA } from "vite-plugin-pwa";
 import { devServerBridgePlugin } from "@lovable.dev/vite-plugin-dev-server-bridge";
 
 /**
