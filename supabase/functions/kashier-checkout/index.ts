@@ -23,6 +23,9 @@ function json(body: unknown, status = 200) {
 // SKU -> { plan, amount (EGP), credits }. Keep in sync with billing copy.
 const SKU_TABLE: Record<string, { plan: string; amount: number; credits: number }> = {
   plan_pro_m_first: { plan: "pro", amount: 249, credits: 1000 },
+  // Kashier hosted checkout has no free-trial primitive: the Egyptian path
+  // starts on the intro price directly, which is what the trial SKU maps to.
+  plan_pro_m_trial: { plan: "pro", amount: 249, credits: 1000 },
   plan_pro_m: { plan: "pro", amount: 499, credits: 1000 },
   plan_elite_m: { plan: "elite", amount: 999, credits: 3000 },
   plan_elite_m_first: { plan: "elite", amount: 499, credits: 3000 },
