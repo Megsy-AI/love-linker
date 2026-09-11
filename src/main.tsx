@@ -7,9 +7,6 @@ import { LazyMotion } from "framer-motion";
 // and chat (see ChatPage, MobilePushShell, MobileBottomSheet, AppSidebar).
 // Downgrading to `domAnimation` disables those features silently.
 const loadMotionFeatures = () => import("framer-motion").then((m) => m.domMax);
-// Start fetching the chat chunk in parallel with app boot. `/`, `/index` and
-// `/chat` all render ChatPage, so by the time the router mounts the chunk is
-// usually already in memory — no route-level loading state is ever painted.
 // First visit ever → show the onboarding showcase instead of the chat.
 // Runs before the router mounts so no chat frame is ever painted first.
 const __hasSession = () => {
@@ -44,11 +41,6 @@ const __firstVisitWelcome = (() => {
   }
 })();
 
-if (!__firstVisitWelcome) {
-  void import("@/pages/chat/ChatPage").catch(recoverFromChunkLoadError);
-} else {
-  void import("@/pages/onboarding/WelcomeShowcasePage").catch(recoverFromChunkLoadError);
-}
 import App from "./App.tsx";
 import { installTapReliability } from "@/lib/tapReliability";
 import ClerkGate from "@/components/auth/ClerkGate";
@@ -148,6 +140,10 @@ if (typeof window !== "undefined" && isInsideTelegram()) {
 })();
 
 patchSupabaseAuth();
+// Run immediately: preview hosts must unregister an old production worker
+// before any route chunk is requested. Registration itself remains deferred
+// internally on supported production hosts.
+registerAppServiceWorker();
 
 // Defer non-critical global init to after first paint so it never blocks
 // the initial React mount / hydration on slow devices.
@@ -158,7 +154,6 @@ const runIdle = (fn: () => void) => {
 };
 runIdle(() => {
   try { installGlobalLinkPrefetch(); } catch {}
-  try { registerAppServiceWorker(); } catch {}
   try { installSnapshotCapture(); } catch {}
 });
 
