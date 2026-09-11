@@ -1197,12 +1197,16 @@ const ChatPage = () => {
             row.value === "up" ? true : row.value === "down" ? false : null;
         });
       }
-      setMessages(
-        msgs
-          .map((m: any) => rowToMessage(m, senderMap, (conv as any)?.mode, feedbackByMessageId))
-          .filter(Boolean) as Message[],
-      );
+      const fresh = msgs
+        .map((m: any) => rowToMessage(m, senderMap, (conv as any)?.mode, feedbackByMessageId))
+        .filter(Boolean) as Message[];
+      setMessages(fresh);
       setTimeout(() => scrollToBottom(), 150);
+      // Keep the local copy in sync so the next open is instant.
+      writeLocalData(`conv:${id}`, {
+        title: (conv as any)?.title || "Untitled",
+        messages: fresh.slice(-40),
+      });
 
       // Re-attach to any in-flight background jobs (docs / slides / chat).
       void resumeDocsJobs({ msgs, setMessages });
