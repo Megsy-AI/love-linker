@@ -11395,7 +11395,7 @@ export type Database = {
           id: string
         }[]
       }
-      premium_image_quota: { Args: { p_user_id: string }; Returns: Json }
+      premium_image_quota: { Args: never; Returns: Json }
       process_polar_order: {
         Args: {
           p_credits: number
