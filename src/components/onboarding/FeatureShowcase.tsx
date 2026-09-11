@@ -14,6 +14,9 @@ const AUTH_HERO_MP4 = "/route-assets/auth/auth-hero-v6.mp4";
 
 type Direction = "next" | "prev";
 
+/** Index of the last onboarding slide (the free-trial offer). */
+const LAST = 3;
+
 const SCREENS = [
   {
     image: welcomeResearch,
@@ -39,8 +42,7 @@ export default function FeatureShowcase({
   const touch = useRef({ x: 0, y: 0 });
   const [region] = useState<PayRegion>(() => getPayRegionOrGuess());
   const isPro = index === 2;
-  const isTrial = index === 3;
-  const LAST = 3;
+  const isTrial = index === LAST;
 
   useEffect(() => {
     setPayRegion(region);
