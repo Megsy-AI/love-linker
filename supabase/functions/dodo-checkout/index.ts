@@ -97,19 +97,27 @@ Deno.serve(async (req) => {
   const info = key ? PLANS[key] : null;
   if (!key || !info) return json({ error: "unknown plan" }, 400);
 
-  // Resolve the exact Dodo product for this catalogue key.
-  const { data: product } = await admin
-    .from("dodo_products")
-    .select("product_id,interval")
-    .eq("interval", key)
-    .eq("active", true)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const productId = String(payload.product_id ?? "") || product?.product_id || "";
+  // Resolve the exact Dodo product for this catalogue key. The trial offer runs
+  // on the $7 monthly product, so it falls back to `monthly_intro` when no
+  // dedicated trial product exists in the catalogue.
+  const productKeys = key === "monthly_trial" ? [key, "monthly_intro", "monthly"] : [key];
+  let productId = String(payload.product_id ?? "");
+  for (const candidate of productKeys) {
+    if (productId) break;
+    const { data: product } = await admin
+      .from("dodo_products")
+      .select("product_id,interval")
+      .eq("interval", candidate)
+      .eq("active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    productId = product?.product_id ?? "";
+  }
   if (!productId) {
     return json({ error: `No Dodo product configured for "${key}"` }, 503);
   }
+  const trialDays = TRIAL_DAYS[key] ?? 0;
   const isSubscription = true; // every catalogue entry is a recurring plan
 
   const orderId = `dodo_${crypto.randomUUID()}`;
