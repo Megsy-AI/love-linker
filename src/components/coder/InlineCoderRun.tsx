@@ -10,6 +10,8 @@ import ChatMessage from "@/components/chat/ChatMessage";
 import { publishProject, withRuntimeShim } from "@/lib/publishProject";
 import { buildReactRuntimeHtml, isReactProject } from "@/lib/buildReactRuntime";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   extractProjectFiles,
   ensureProjectScaffold,
