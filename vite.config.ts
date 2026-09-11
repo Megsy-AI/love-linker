@@ -838,7 +838,6 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "html-nav",
-              networkTimeoutSeconds: 4,
               expiration: { maxEntries: 40, maxAgeSeconds: 24 * 60 * 60 },
               // If both the network and the precache miss (e.g. index.html
               // hasn't been cached yet on a brand-new offline install), fall

@@ -2,6 +2,7 @@ import { Component, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { reportError } from "@/lib/errors";
 import { captureAppError } from "@/lib/sentry";
+import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 
 interface Props {
   children: ReactNode;
@@ -13,73 +14,10 @@ interface State {
   error?: Error;
 }
 
-// Errors that warrant a one-time reload (stale JS chunks after a deploy).
-// DOM-mutation errors (insertBefore/removeChild/"not a child of this node")
-// are recovered by React itself on the next render — reloading on them causes
-// hard refreshes on every route change on mobile, so they're excluded here.
-const TRANSIENT_PATTERNS = [
-  /Failed to fetch dynamically imported module/i,
-  /Importing a module script failed/i,
-  /Loading chunk \d+ failed/i,
-  /ChunkLoadError/i,
-  /Loading CSS chunk/i,
-];
-
-const isTransient = (err: unknown): boolean => {
-  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "");
-  return TRANSIENT_PATTERNS.some((re) => re.test(msg));
-};
-
-// Minified React runtime errors (e.g. #185 "Maximum update depth exceeded",
-// #300, #301, #310) look terrifying to end-users and usually resolve on the
-// next render pass. Auto-recover instead of surfacing the raw react.dev link.
-const AUTO_RECOVER_PATTERNS = [
-  /Minified React error #\d+/i,
-  /Maximum update depth exceeded/i,
-  /Rendered (more|fewer) hooks than during the previous render/i,
-  /Rendered a different number of hooks/i,
-  /Cannot update (a|an unmounted) component/i,
-  /Should have a queue/i,
-  /Index \d+ out of bounds/i,
-
-];
-
-const shouldAutoRecover = (err: unknown): boolean => {
-  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "");
-  return AUTO_RECOVER_PATTERNS.some((re) => re.test(msg));
-};
-
-
-const RECOVERY_FLAG = "__megsy_eb_recovery_count";
-const RECOVERY_WINDOW_MS = 10_000;
-const RECOVERY_MAX = 3;
-
 class ErrorBoundary extends Component<Props, State> {
-  // Bounded, delayed silent retries. Resetting synchronously inside
-  // componentDidCatch re-renders the same failing child immediately, which for
-  // a permanently-failing chunk import turns into an infinite catch/reset loop
-  // (React error #185). We cap the attempts and always wait a tick.
-  private silentRetries = 0;
-  private retryTimer: ReturnType<typeof setTimeout> | undefined;
-
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
-  }
-
-  componentWillUnmount() {
-    if (this.retryTimer) clearTimeout(this.retryTimer);
-  }
-
-  private scheduleSilentRetry(max: number) {
-    if (this.silentRetries >= max) return false;
-    this.silentRetries += 1;
-    if (this.retryTimer) clearTimeout(this.retryTimer);
-    this.retryTimer = setTimeout(
-      () => this.setState({ hasError: false, error: undefined }),
-      400 * this.silentRetries,
-    );
-    return true;
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -97,34 +35,10 @@ class ErrorBoundary extends Component<Props, State> {
       componentStack: info.componentStack?.slice(0, 1500) ?? null,
     });
 
-    // Transient browser-translation / chunk-load errors: silently retry the
-    // render. We never reload the page automatically — the user decides when
-    // to refresh (via the "Try again" button below).
-    if (isTransient(error)) {
-      if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
-      return;
-    }
-
-    // Minified React render errors (loops, hook order, unmount): try to
-    // silently recover a few times before surfacing anything. Users should
-    // never see "Minified React error #185; visit react.dev...".
-    if (shouldAutoRecover(error)) {
-      try {
-        const raw = sessionStorage.getItem(RECOVERY_FLAG);
-        let parsed: { at: number; count: number } = { at: 0, count: 0 };
-        if (raw) {
-          try { parsed = JSON.parse(raw); } catch { /* ignore */ }
-        }
-        const now = Date.now();
-        if (now - parsed.at > RECOVERY_WINDOW_MS) parsed = { at: now, count: 0 };
-        parsed.count += 1;
-        parsed.at = now;
-        sessionStorage.setItem(RECOVERY_FLAG, JSON.stringify(parsed));
-        if (parsed.count <= RECOVERY_MAX && this.scheduleSilentRetry(RECOVERY_MAX)) return;
-      } catch {
-        if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
-      }
-    }
+    // React.lazy permanently caches a rejected import. Resetting this boundary
+    // only throws the same error again and eventually causes React #185.
+    // Recover a stale deploy with one guarded reload instead.
+    recoverFromChunkLoadError(error);
   }
 
   componentDidUpdate(prev: Props) {
@@ -140,8 +54,9 @@ class ErrorBoundary extends Component<Props, State> {
       // Never leak raw "Minified React error #185; visit https://react.dev/..."
       // messages into the UI — they are confusing and non-actionable.
       const isReactMinified = /Minified React error #\d+/i.test(raw);
-      const detail = !raw || isReactMinified
-        ? "The app recovered from an unexpected client error."
+      const chunkFailed = isChunkLoadError(this.state.error);
+      const detail = !raw || isReactMinified || chunkFailed
+        ? "We couldn't load this screen. Reload to get the latest version."
         : raw.slice(0, 160);
       return (
         <div className="min-h-dvh bg-background text-foreground flex items-center justify-center p-6">
@@ -153,12 +68,11 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-muted-foreground">{detail}</p>
             <button
               onClick={() => {
-                this.silentRetries = 0;
-                this.setState({ hasError: false, error: undefined });
+                window.location.reload();
               }}
               className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
             >
-              Try again
+              Reload
             </button>
           </div>
         </div>

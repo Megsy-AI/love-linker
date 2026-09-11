@@ -44,8 +44,11 @@ const __firstVisitWelcome = (() => {
   }
 })();
 
-if (!__firstVisitWelcome) void import("@/pages/chat/ChatPage");
-else void import("@/pages/onboarding/WelcomeShowcasePage");
+if (!__firstVisitWelcome) {
+  void import("@/pages/chat/ChatPage").catch(recoverFromChunkLoadError);
+} else {
+  void import("@/pages/onboarding/WelcomeShowcasePage").catch(recoverFromChunkLoadError);
+}
 import App from "./App.tsx";
 import { installTapReliability } from "@/lib/tapReliability";
 import ClerkGate from "@/components/auth/ClerkGate";
@@ -85,6 +88,7 @@ import { toast as sonnerToast } from "sonner";
 import { patchSupabaseAuth } from "@/integrations/supabase/patchAuth";
 import { installGlobalLinkPrefetch } from "@/lib/globalLinkPrefetch";
 import { registerAppServiceWorker } from "@/lib/registerSW";
+import { recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import { installSnapshotCapture } from "@/lib/pageSnapshot";
 import { initUserLang } from "@/lib/authI18n";
 import { tryAutoLoginTelegram, isInsideTelegram, initTelegramWebApp } from "@/lib/telegramAuth";
@@ -208,31 +212,9 @@ const __reportThrottled = (err: unknown, source: string) => {
   void reportError(err, { source });
 };
 
-// AUTOMATIC PAGE RELOADS ARE DISABLED APP-WIDE.
-// Chunk/module-load failures are recovered by `lazyWithRetry` (re-import with
-// backoff). If they still fail we surface a manual "Reload" toast — the app
-// must never refresh itself under the user (especially not while chatting).
-const __TRANSIENT_RE =
-  /(Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed|ChunkLoadError|Loading CSS chunk)/i;
 const __IGNORED_BROWSER_NOISE_RE = /ResizeObserver loop completed with undelivered notifications/i;
-let __transientNoticeAt = 0;
 const __maybeReload = (err: unknown) => {
-  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "");
-  if (!__TRANSIENT_RE.test(msg)) return false;
-  const now = Date.now();
-  if (now - __transientNoticeAt > 60_000) {
-    __transientNoticeAt = now;
-    void import("sonner")
-      .then(({ toast }) => {
-        toast("A new version is available", {
-          description: "Reload when you're ready — nothing is refreshed automatically.",
-          duration: 12_000,
-          action: { label: "Reload", onClick: () => window.location.reload() },
-        });
-      })
-      .catch(() => {});
-  }
-  return true;
+  return recoverFromChunkLoadError(err);
 };
 
 window.addEventListener("error", (e) => {
