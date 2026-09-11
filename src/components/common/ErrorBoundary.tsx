@@ -120,13 +120,9 @@ class ErrorBoundary extends Component<Props, State> {
         parsed.count += 1;
         parsed.at = now;
         sessionStorage.setItem(RECOVERY_FLAG, JSON.stringify(parsed));
-        if (parsed.count <= RECOVERY_MAX) {
-          this.setState({ hasError: false, error: undefined });
-          return;
-        }
+        if (parsed.count <= RECOVERY_MAX && this.scheduleSilentRetry(RECOVERY_MAX)) return;
       } catch {
-        this.setState({ hasError: false, error: undefined });
-        return;
+        if (this.scheduleSilentRetry(RECOVERY_MAX)) return;
       }
     }
   }
