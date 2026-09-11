@@ -129,6 +129,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidUpdate(prev: Props) {
     if (prev.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.silentRetries = 0;
       this.setState({ hasError: false, error: undefined });
     }
   }
