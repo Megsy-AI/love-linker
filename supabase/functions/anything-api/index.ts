@@ -1254,9 +1254,7 @@ Deno.serve(async (req) => {
 
     // Premium (non-free) image models: 3 per UTC day without a subscription,
     // unlimited for subscribers. Enforced in Postgres, so the UI can't bypass.
-    const isPremiumModel = !slug.startsWith("deapi-") || DEAPI_MODELS[slug] === undefined
-      ? !slug.startsWith("deapi-")
-      : false;
+    const isPremiumModel = !slug.startsWith("deapi-");
     if (isPremiumModel) {
       const authHeader = req.headers.get("authorization") ?? "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
