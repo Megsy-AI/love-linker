@@ -22,7 +22,18 @@
  */
 
 const PREFIX = "megsy_cache_ld:"; // matches the sign-out sweep in App.tsx
-const BUILD = (import.meta as any).env?.VITE_BUILD_ID || "dev";
+const BUILD = (() => {
+  try {
+    const fromEnv = (import.meta as any).env?.VITE_BUILD_ID as string | undefined;
+    if (fromEnv) return String(fromEnv);
+    const meta = document.querySelector('meta[name="megsy-build"]')?.getAttribute("content");
+    if (meta && !meta.includes("%")) return meta;
+  } catch {
+    /* ignore */
+  }
+  // Fallback: a day bucket so a stuck client still refreshes daily.
+  return `d_${Math.floor(Date.now() / (24 * 60 * 60 * 1000))}`;
+})();
 const DEFAULT_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 const MAX_ENTRY_BYTES = 320 * 1024;
 
