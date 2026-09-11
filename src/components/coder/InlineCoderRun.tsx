@@ -303,7 +303,20 @@ export default function InlineCoderRun({
       final.map(({ path, content }) => ({ path, content })),
       summary,
     );
+
+    // Silent, internal-only backup of the produced project. Never surfaced in
+    // the UI and never allowed to affect the run's outcome.
+    void supabase.functions
+      .invoke("coder-store", {
+        body: {
+          run_id: runId,
+          message: prompt.slice(0, 80),
+          files: final.map(({ path, content }) => ({ path, content })),
+        },
+      })
+      .catch(() => undefined);
   };
+
 
   /** Regenerate a single asset and re-inject it across the project. */
   const regenerateAsset = async (id: string) => {
