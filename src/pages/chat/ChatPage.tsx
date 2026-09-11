@@ -136,6 +136,7 @@ import { playNotificationSound } from "./utils/notificationSound";
 import { getSeoMeta } from "./data/seoByMode";
 import { rowToMessage } from "./services/rowToMessage";
 import { loadConversationMembers } from "./services/loadConversationMembers";
+import { readLocalData, writeLocalData } from "@/lib/localData";
 // Heavy turn/resume services — dynamic-imported on demand. These only run
 // after the user sends a message or when resuming background jobs, so they
 // should never be in the initial /chat chunk. Total savings: ~2500 LOC.
