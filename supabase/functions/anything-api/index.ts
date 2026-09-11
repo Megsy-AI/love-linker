@@ -241,7 +241,7 @@ async function deapiGenerate(opts: {
     form.append("model", opts.model);
     form.append("prompt", opts.prompt);
     form.append("seed", String(seed));
-    form.append("steps", String(opts.steps));
+    if (opts.steps > 0) form.append("steps", String(opts.steps));
     const blobs = await Promise.all(
       opts.images.map(async (u, i) => {
         const r = await fetch(u);
