@@ -63,3 +63,11 @@
 - [ ] تحديث بيانات الباقات (إزالة الفيديو + المزايا الجديدة)
 - [x] زر الإرسال لا يتوقف أبدًا + بدء مهام في أي وقت
 - [x] إصلاح التحميل العالق والشاشة البيضاء والتنقل بين كل الصفحات
+
+## 2026-09-11 — Trial + premium images
+- [x] Fourth welcome slide: 3 days free + CTA to trial checkout
+- [x] Dodo: 3-day card-linked trial before the $7 monthly plan
+- [x] Kashier: trial SKU maps to the EGP intro price (no native trial support)
+- [x] 3 premium images/day free, unlimited for subscribers (enforced in Postgres)
+- [x] DeAPI gpt-image-2 / nano-banana-2 wired + cross-provider rescue chain
+- [ ] Dodo dashboard: confirm the $7 product's trial setting matches 3 days
