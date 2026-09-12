@@ -65,10 +65,12 @@
 - [x] إصلاح التحميل العالق والشاشة البيضاء والتنقل بين كل الصفحات
 
 ## 2026-09-11 — Trial + premium images
-- [x] Fourth welcome slide: 3 days free + CTA to trial checkout
+- [x] Fourth welcome slide: new Korean editorial artwork + $1 / 3-day CTA
 - [x] Dodo: 3-day card-linked trial before the $7 monthly plan
 - [x] Kashier: trial SKU maps to the EGP intro price (no native trial support)
 - [x] 3 premium images/day free, unlimited for subscribers (enforced in Postgres)
 - [x] DeAPI gpt-image-2 / nano-banana-2 wired + cross-provider rescue chain
 - [ ] Dodo dashboard: create the $1 / 3-day trial product, then add it to dodo_products with interval `monthly_trial`
 - [x] Trial = $1 for 3 days (49 EGP via Kashier); 3 premium images/day during the trial, unlimited after
+- [x] Pricing: make the $1 / 3-day offer the default, prominent choice on mobile and desktop
+- [x] Computer Agent: read Browser Use keys from the encrypted Telegram-managed vault

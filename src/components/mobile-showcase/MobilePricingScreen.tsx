@@ -211,19 +211,20 @@ export default function MobilePricingScreen({
       };
 
   // The $1 / 3-day trial is a separate choice alongside monthly & yearly.
-  const [trialSelected, setTrialSelected] = useState(false);
+  // Lead with the introductory offer so it cannot be missed on first view.
+  const [trialSelected, setTrialSelected] = useState(true);
 
   const trialCopy = isAr
     ? {
-        label: "تجربة 3 أيام",
-        badge: "الأفضل للبداية",
+        label: "3 أيام مقابل 1$",
+        badge: "عرض البداية",
         unit: "/ 3 أيام",
         fine: `1$ لمدة 3 أيام، وخلال التجربة 3 صور متقدمة يوميًا. بعدها ${`$${INTRO_PRICE}`} للشهر الأول ثم $${pro.monthlyPrice}/شهر مع صور بلا حدود. يمكنك الإلغاء في أي وقت.`,
         cta: "ابدأ 3 أيام بـ 1$",
       }
     : {
-        label: "3-day trial",
-        badge: "Best way to start",
+        label: "3 days for $1",
+        badge: "INTRO OFFER",
         unit: "/ 3 days",
         fine: `$1 for 3 days, with 3 premium images per day during the trial. Then $${INTRO_PRICE}.00 for your first month and $${pro.monthlyPrice}.00/month after, with unlimited images. Cancel anytime.`,
         cta: "Start 3 days for $1",

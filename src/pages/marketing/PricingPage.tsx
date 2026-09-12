@@ -815,6 +815,22 @@ const PricingPage = () => {
                     Unlock your creative power — start today
                   </p>
 
+                  <div className="mx-auto mt-6 max-w-md rounded-2xl border border-foreground/30 bg-foreground/[0.08] px-5 py-4 text-center backdrop-blur-md">
+                    <p className="text-lg font-semibold text-foreground">3 days of Megsy Pro for $1</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-foreground/80">
+                      Includes 3 premium images every day. Then $7 for your first month with
+                      unlimited premium images. Cancel anytime.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleSubscribe("pro", { trial: true, interval: "monthly" })}
+                      disabled={loadingTier !== null}
+                      className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {loadingTier === "pro" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start for $1"}
+                    </button>
+                  </div>
+
                   {/* Billing toggle */}
                   <div className="mt-6 inline-flex items-center gap-4">
                     <span
