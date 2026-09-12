@@ -6,6 +6,7 @@ import { setUserLang } from "@/lib/authI18n";
 import welcomeResearch from "@/assets/welcome-character-research-v2.jpg";
 import welcomeCreate from "@/assets/welcome-character-create-v2.jpg";
 import welcomePro from "@/assets/welcome-pro-card-blue.jpg";
+import welcomeTrial from "@/assets/welcome-trial-korean-editorial-v1.jpg";
 import "@/styles/welcome-showcase.css";
 
 const AUTH_HERO_POSTER = "/route-assets/auth/auth-hero-v6-poster.jpg";
@@ -265,15 +266,15 @@ function ProScreen() {
 function TrialScreen() {
   return (
     <div className="mx-auto flex h-full w-full max-w-md flex-col pb-44 sm:max-w-lg">
-      <div className="relative h-[60dvh] min-h-[380px] max-h-[620px] w-full overflow-hidden">
+      <div className="relative h-[60dvh] min-h-[360px] max-h-[620px] w-full overflow-hidden">
         <img
-          src={welcomePro}
-          alt="Woman holding a Megsy Pro card toward the camera"
+          src={welcomeTrial}
+          alt="Korean fashion model holding a translucent three-light membership card"
           width={1024}
           height={1280}
           loading="eager"
           fetchPriority="high"
-          className="h-full w-full object-cover object-center"
+          className="h-full w-full object-cover object-[center_38%]"
         />
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[hsl(var(--welcome-paper))] to-transparent" />
       </div>
@@ -283,9 +284,8 @@ function TrialScreen() {
           3 days for $1.
         </h2>
         <p className="mt-4 max-w-[330px] text-[16px] font-medium leading-6 text-[hsl(var(--welcome-muted))]">
-          Try Megsy Pro for 3 days for just $1 — includes 3 premium images every day
-          plus the strongest models. After the trial it continues at $7 for the first month,
-          and you can cancel anytime. Premium images become unlimited on the full subscription.
+          Get 3 premium images every day during your trial. Then continue for $7 in your first
+          month with unlimited premium images, or cancel anytime.
         </p>
       </div>
     </div>

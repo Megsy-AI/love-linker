@@ -7,6 +7,7 @@
  */
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { dataServiceKey, dataUrl } from "../_shared/dataProject.ts";
+import { noteKeyFail, noteKeyOk, vaultKeys } from "../_shared/keyVault.ts";
 
 // Browser Use Cloud API v2 — https://docs.browser-use.com/cloud/api-v2
 const API_BASE = Deno.env.get("BROWSER_USE_API_BASE") || "https://api.browser-use.com/api/v2";
@@ -58,6 +59,9 @@ async function authenticate(supabase: SupabaseClient, token?: string) {
  * pool under provider "c".
  */
 async function availableKeys(supabase: SupabaseClient): Promise<KeyRow[]> {
+  // The Telegram admin bot stores Browser Use keys in the encrypted vault.
+  // This is the canonical pool; legacy plaintext tables remain fallback-only.
+  const vaulted = await vaultKeys("browser-use").catch(() => []);
   const { data: browserUse } = await supabase
     .from("browser_use_keys")
     .select("id,api_key,status,failure_count,cooldown_until,last_used_at,priority")
@@ -95,7 +99,17 @@ async function availableKeys(supabase: SupabaseClient): Promise<KeyRow[]> {
   }));
 
   const now = Date.now();
-  return [...browserUseRows, ...((data ?? []) as KeyRow[]), ...poolRows]
+  const vaultRows: KeyRow[] = vaulted.map((entry) => ({
+    id: `vault:${entry.id}`,
+    api_key: entry.key,
+    status: "active",
+    failure_count: 0,
+    cooldown_until: null,
+    last_used_at: null,
+    priority: 100,
+  }));
+
+  return [...vaultRows, ...browserUseRows, ...((data ?? []) as KeyRow[]), ...poolRows]
     .filter((k) => k.api_key && (!k.cooldown_until || new Date(k.cooldown_until).getTime() <= now))
     .sort((a, b) => {
       const pa = a.priority ?? 0;
@@ -115,6 +129,11 @@ async function markFailure(
   retryAfterSec?: number,
 ) {
   if (key.id === "env") return; // env-configured fallback key has no DB row
+
+  if (key.id.startsWith("vault:")) {
+    await noteKeyFail(key.id.slice(6), `${status}: ${message}`);
+    return;
+  }
 
   if (key.id.startsWith("bu:")) {
     const patch: Record<string, unknown> = {
@@ -160,6 +179,10 @@ async function markFailure(
 
 async function markSuccess(supabase: SupabaseClient, key: KeyRow) {
   if (key.id === "env") return;
+  if (key.id.startsWith("vault:")) {
+    await noteKeyOk(key.id.slice(6));
+    return;
+  }
   if (key.id.startsWith("bu:")) {
     await supabase
       .from("browser_use_keys")
